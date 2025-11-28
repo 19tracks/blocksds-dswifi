@@ -65,16 +65,15 @@
   };
 
   /* Streaming API */
-  int Wifi_Rand_Core_Init( Wifi_Rand_Core_State *S, size_t outlen );
-  int Wifi_Rand_Core_InitKey( Wifi_Rand_Core_State *S, size_t outlen, const void *key, size_t keylen );
   int Wifi_Rand_Core_InitParam( Wifi_Rand_Core_State *S, const Wifi_Rand_Core_Param *P );
   int Wifi_Rand_Core_Update( Wifi_Rand_Core_State *S, const void *in, size_t inlen );
   int Wifi_Rand_Core_Final( Wifi_Rand_Core_State *S, void *out, size_t outlen );
 
   /* Variable output length API */
   int Wifi_Rand_Init( Wifi_Rand_State *S );
-  int Wifi_Rand_InitKey( Wifi_Rand_State *S, const void *key, size_t keylen );
-  int Wifi_Rand_Update( Wifi_Rand_State *S, const void *in, size_t inlen );
+  static inline int Wifi_Rand_Update( Wifi_Rand_State *S, const void *in, size_t inlen ) {
+    return Wifi_Rand_Core_Update( S->S, in, inlen );
+  }
   int Wifi_Rand_Finish( Wifi_Rand_State *S, Wifi_Rand_FinishedState *F );
   int Wifi_Rand_FinishedReadBytes( Wifi_Rand_FinishedState *F, void *out, size_t outlen );
 

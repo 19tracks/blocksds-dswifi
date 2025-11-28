@@ -6,22 +6,9 @@
 #include "wifi_rand_impl.h"
 
 int Wifi_Rand_Init( Wifi_Rand_State *S ) {
-  return Wifi_Rand_InitKey(S, NULL, 0);
-}
-
-int Wifi_Rand_InitKey( Wifi_Rand_State *S, const void *key, size_t keylen )
-{
-  if (NULL != key && keylen > WIFI_RAND_CORE_KEYBYTES) {
-    return -1;
-  }
-
-  if (NULL == key && keylen > 0) {
-    return -1;
-  }
-
   /* Initialize parameter block */
   S->P->digest_length = WIFI_RAND_CORE_OUTBYTES;
-  S->P->key_length    = keylen;
+  S->P->key_length    = 0;
   S->P->fanout        = 1;
   S->P->depth         = 1;
   store32( &S->P->leaf_length, 0 );
@@ -36,18 +23,7 @@ int Wifi_Rand_InitKey( Wifi_Rand_State *S, const void *key, size_t keylen )
     return -1;
   }
 
-  if (keylen > 0) {
-    uint8_t block[WIFI_RAND_CORE_BLOCKBYTES];
-    memset(block, 0, WIFI_RAND_CORE_BLOCKBYTES);
-    memcpy(block, key, keylen);
-    Wifi_Rand_Core_Update(S->S, block, WIFI_RAND_CORE_BLOCKBYTES);
-    secure_zero_memory(block, WIFI_RAND_CORE_BLOCKBYTES);
-  }
   return 0;
-}
-
-int Wifi_Rand_Update( Wifi_Rand_State *S, const void *in, size_t inlen ) {
-  return Wifi_Rand_Core_Update( S->S, in, inlen );
 }
 
 int Wifi_Rand_Finish(Wifi_Rand_State *S, Wifi_Rand_FinishedState *F) {

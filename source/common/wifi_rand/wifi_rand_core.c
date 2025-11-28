@@ -68,63 +68,6 @@ int Wifi_Rand_Core_InitParam( Wifi_Rand_Core_State *S, const Wifi_Rand_Core_Para
   return 0;
 }
 
-
-/* Sequential wifi_rand_core initialization */
-int Wifi_Rand_Core_Init( Wifi_Rand_Core_State *S, size_t outlen )
-{
-  Wifi_Rand_Core_Param P[1];
-
-  /* Move interval verification here? */
-  if ( ( !outlen ) || ( outlen > WIFI_RAND_CORE_OUTBYTES ) ) return -1;
-
-  P->digest_length = (uint8_t)outlen;
-  P->key_length    = 0;
-  P->fanout        = 1;
-  P->depth         = 1;
-  store32( &P->leaf_length, 0 );
-  store32( &P->node_offset, 0 );
-  store16( &P->xof_length, 0 );
-  P->node_depth    = 0;
-  P->inner_length  = 0;
-  /* memset(P->reserved, 0, sizeof(P->reserved) ); */
-  memset( P->salt,     0, sizeof( P->salt ) );
-  memset( P->personal, 0, sizeof( P->personal ) );
-  return Wifi_Rand_Core_InitParam( S, P );
-}
-
-int Wifi_Rand_Core_InitKey( Wifi_Rand_Core_State *S, size_t outlen, const void *key, size_t keylen )
-{
-  Wifi_Rand_Core_Param P[1];
-
-  if ( ( !outlen ) || ( outlen > WIFI_RAND_CORE_OUTBYTES ) ) return -1;
-
-  if ( !key || !keylen || keylen > WIFI_RAND_CORE_KEYBYTES ) return -1;
-
-  P->digest_length = (uint8_t)outlen;
-  P->key_length    = (uint8_t)keylen;
-  P->fanout        = 1;
-  P->depth         = 1;
-  store32( &P->leaf_length, 0 );
-  store32( &P->node_offset, 0 );
-  store16( &P->xof_length, 0 );
-  P->node_depth    = 0;
-  P->inner_length  = 0;
-  /* memset(P->reserved, 0, sizeof(P->reserved) ); */
-  memset( P->salt,     0, sizeof( P->salt ) );
-  memset( P->personal, 0, sizeof( P->personal ) );
-
-  if( Wifi_Rand_Core_InitParam( S, P ) < 0 ) return -1;
-
-  {
-    uint8_t block[WIFI_RAND_CORE_BLOCKBYTES];
-    memset( block, 0, WIFI_RAND_CORE_BLOCKBYTES );
-    memcpy( block, key, keylen );
-    Wifi_Rand_Core_Update( S, block, WIFI_RAND_CORE_BLOCKBYTES );
-    secure_zero_memory( block, WIFI_RAND_CORE_BLOCKBYTES ); /* Burn the key from stack */
-  }
-  return 0;
-}
-
 #define G(m,i,a,b,c,d)                      \
   do {                                      \
     a = a + b + m[2*i+0];                   \
