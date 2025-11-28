@@ -12,7 +12,7 @@
 #include <nds/arm9/cp15_asm.h>
 #include <dswifi_common.h>
 
-#include "common/blake2/blake2.h"
+#include "common/wifi_rand/wifi_rand.h"
 
 
 // Space reserved for incoming and outgoing packets
@@ -157,10 +157,10 @@ typedef struct {
     u8 pmk[32];  // For WPA and WPA2
 } Wifi_ApSecurity;
 
-// FIXME: comment, and also should we really be putting blake2 symbols in the
+// FIXME: comment, and also should we really be putting wifi_rand symbols in the
 // wi-fi headers and .a? can we reasonably avoid it?
 typedef struct {
-    blake2xs_state state;
+    wifi_rand_state state;
     bool dirty7, dirty9;
     // As above, the ARM9 doesn't write to this, so the ARM7 is free to read
     // from it with no lock as long as interrupts are disabled.
@@ -283,7 +283,7 @@ typedef struct WIFI_MAINSTRUCT
     // generate random numbers. They are seeded from hardware_rng_seed by the
     // ARM7. They must never be set to zero.
     // FIXME: comment
-    blake2xs_finished_state rngHasher7, rngHasher9;
+    wifi_rand_finished_state rngHasher7, rngHasher9;
 
     // End
     // ---

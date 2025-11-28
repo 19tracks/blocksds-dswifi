@@ -17,7 +17,7 @@
 #include "common/common_ntr_defs.h"
 #include "common/ieee_defs.h"
 #include "common/spinlock.h"
-#include "common/blake2/blake2.h"
+#include "common/wifi_rand/wifi_rand.h"
 
 // Cached mirror. This should only be used when initializing the struct
 static Wifi_MainStruct *WifiDataCached = NULL;
@@ -90,7 +90,7 @@ static bool Wifi_InitIPC(unsigned int flags)
     for (u8 i = 0; i < PersonalData->nameLen; i++)
         WifiData->hostPlayerName[i] = PersonalData->name[i];
 
-    blake2xs_init((void*)&WifiData->entropyHasher.state);
+    wifi_rand_init((void*)&WifiData->entropyHasher.state);
     WifiData->entropyHasher.dirty7 = true;
     WifiData->entropyHasher.dirty9 = true;
     // The spinlock was initialized to 0 with memset.
