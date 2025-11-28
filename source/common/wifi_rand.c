@@ -154,27 +154,25 @@ void Wifi_Rand_Init( Wifi_Rand_State *S ) {
 void Wifi_Rand_Update( Wifi_Rand_State *S, const void *pin, size_t inlen )
 {
   const unsigned char * in = (const unsigned char *)pin;
-  if( inlen > 0 )
+
+  size_t left = S->buflen;
+  size_t fill = WIFI_RAND_BLOCKBYTES - left;
+  if( inlen > fill )
   {
-    size_t left = S->buflen;
-    size_t fill = WIFI_RAND_BLOCKBYTES - left;
-    if( inlen > fill )
-    {
-      S->buflen = 0;
-      memcpy( S->buf + left, in, fill ); /* Fill buffer */
-      Wifi_Rand_IncrementCounter( S, WIFI_RAND_BLOCKBYTES );
-      Wifi_Rand_Compress( S, S->buf ); /* Compress */
-      in += fill; inlen -= fill;
-      while(inlen > WIFI_RAND_BLOCKBYTES) {
-        Wifi_Rand_IncrementCounter(S, WIFI_RAND_BLOCKBYTES);
-        Wifi_Rand_Compress( S, in );
-        in += WIFI_RAND_BLOCKBYTES;
-        inlen -= WIFI_RAND_BLOCKBYTES;
-      }
+    S->buflen = 0;
+    memcpy( S->buf + left, in, fill ); /* Fill buffer */
+    Wifi_Rand_IncrementCounter( S, WIFI_RAND_BLOCKBYTES );
+    Wifi_Rand_Compress( S, S->buf ); /* Compress */
+    in += fill; inlen -= fill;
+    while(inlen > WIFI_RAND_BLOCKBYTES) {
+      Wifi_Rand_IncrementCounter(S, WIFI_RAND_BLOCKBYTES);
+      Wifi_Rand_Compress( S, in );
+      in += WIFI_RAND_BLOCKBYTES;
+      inlen -= WIFI_RAND_BLOCKBYTES;
     }
-    memcpy( S->buf + S->buflen, in, inlen );
-    S->buflen += inlen;
   }
+  memcpy( S->buf + S->buflen, in, inlen );
+  S->buflen += inlen;
 }
 
 void Wifi_Rand_Finish(Wifi_Rand_State *S, Wifi_Rand_FinishedState *F) {
