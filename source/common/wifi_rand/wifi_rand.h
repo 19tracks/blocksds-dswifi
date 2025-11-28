@@ -4,13 +4,13 @@
 #include <stddef.h>
 #include <stdint.h>
 
-  enum Wifi_Rand_Core_Constant
+  enum Wifi_Rand_Constant
   {
-    WIFI_RAND_CORE_BLOCKBYTES = 64,
-    WIFI_RAND_CORE_OUTBYTES   = 32,
-    WIFI_RAND_CORE_KEYBYTES   = 32,
-    WIFI_RAND_CORE_SALTBYTES  = 8,
-    WIFI_RAND_CORE_PERSONALBYTES = 8
+    WIFI_RAND_BLOCKBYTES = 64,
+    WIFI_RAND_OUTBYTES   = 32,
+    WIFI_RAND_KEYBYTES   = 32,
+    WIFI_RAND_SALTBYTES  = 8,
+    WIFI_RAND_PERSONALBYTES = 8
   };
 
   typedef struct Wifi_Rand_State__
@@ -18,7 +18,7 @@
     uint32_t h[8];
     uint32_t t[2];
     uint32_t f[2];
-    uint8_t  buf[WIFI_RAND_CORE_BLOCKBYTES];
+    uint8_t  buf[WIFI_RAND_BLOCKBYTES];
     size_t   buflen;
     size_t   outlen;
     uint8_t  last_node;
@@ -26,13 +26,13 @@
 
   /*
      ->S->S->buflen still stores the number of bytes in the
-     buffer, but those bytes end at buf[WIFI_RAND_CORE_OUTBYTES]
+     buffer, but those bytes end at buf[WIFI_RAND_OUTBYTES]
      instead of starting at buf[0].
   */
   typedef struct Wifi_Rand_FinishedState__
   {
-    uint8_t  root[WIFI_RAND_CORE_OUTBYTES];
-    uint8_t  buf[WIFI_RAND_CORE_OUTBYTES];
+    uint8_t  root[WIFI_RAND_OUTBYTES];
+    uint8_t  buf[WIFI_RAND_OUTBYTES];
     size_t   buflen;
     uint32_t counter;
   } Wifi_Rand_FinishedState;

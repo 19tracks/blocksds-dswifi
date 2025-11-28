@@ -13,12 +13,12 @@ void Wifi_Rand_Finish(Wifi_Rand_State *S, Wifi_Rand_FinishedState *F) {
   /* Finalize the root hash */
   Wifi_Rand_State C[1];
   memcpy(C, S, sizeof(C));
-  Wifi_Rand_Core_Final(C, F->root, WIFI_RAND_CORE_OUTBYTES);
+  Wifi_Rand_Core_Final(C, F->root, WIFI_RAND_OUTBYTES);
   F->buflen = 0;
   F->counter = 0;
 }
 
-static void Wifi_Rand_FinishedReadBlock(Wifi_Rand_FinishedState *F, uint8_t out[WIFI_RAND_CORE_OUTBYTES]) {
+static void Wifi_Rand_FinishedReadBlock(Wifi_Rand_FinishedState *F, uint8_t out[WIFI_RAND_OUTBYTES]) {
   Wifi_Rand_State C[1];
 
   /* Initialize state */
@@ -26,8 +26,8 @@ static void Wifi_Rand_FinishedReadBlock(Wifi_Rand_FinishedState *F, uint8_t out[
   // use pre-finalization
   Wifi_Rand_Core_InitCounter(C, ++F->counter);
   /* Process key if needed */
-  Wifi_Rand_Core_Update(C, F->root, WIFI_RAND_CORE_OUTBYTES);
-  Wifi_Rand_Core_Final(C, out, WIFI_RAND_CORE_OUTBYTES);
+  Wifi_Rand_Core_Update(C, F->root, WIFI_RAND_OUTBYTES);
+  Wifi_Rand_Core_Final(C, out, WIFI_RAND_OUTBYTES);
 }
 
 void Wifi_Rand_FinishedReadBytes(Wifi_Rand_FinishedState *F, void *outv, size_t outlen) {
@@ -43,28 +43,28 @@ void Wifi_Rand_FinishedReadBytes(Wifi_Rand_FinishedState *F, void *outv, size_t 
   // unpredictable and irreproducible, so it doesn't matter that
   // this can result in us producing bytes out of order; all that
   // matters is that they're never reused.
-  if (outlen % WIFI_RAND_CORE_OUTBYTES > 0) {
+  if (outlen % WIFI_RAND_OUTBYTES > 0) {
     if (outlen <= F->buflen) {
-      memcpy(out, &F->buf[WIFI_RAND_CORE_OUTBYTES - F->buflen], outlen);
+      memcpy(out, &F->buf[WIFI_RAND_OUTBYTES - F->buflen], outlen);
       F->buflen -= outlen;
       return;
     }
 
-    memcpy(out, &F->buf[WIFI_RAND_CORE_OUTBYTES - F->buflen], F->buflen);
+    memcpy(out, &F->buf[WIFI_RAND_OUTBYTES - F->buflen], F->buflen);
     out += F->buflen;
     outlen -= F->buflen;
     F->buflen = 0;
   }
 
-  while (outlen >= WIFI_RAND_CORE_OUTBYTES) {
+  while (outlen >= WIFI_RAND_OUTBYTES) {
     Wifi_Rand_FinishedReadBlock(F, out);
-    out += WIFI_RAND_CORE_OUTBYTES;
-    outlen -= WIFI_RAND_CORE_OUTBYTES;
+    out += WIFI_RAND_OUTBYTES;
+    outlen -= WIFI_RAND_OUTBYTES;
   }
 
   if (outlen > 0) {
     Wifi_Rand_FinishedReadBlock(F, F->buf);
     memcpy(out, F->buf, outlen);
-    F->buflen = WIFI_RAND_CORE_OUTBYTES - outlen;
+    F->buflen = WIFI_RAND_OUTBYTES - outlen;
   }
 }

@@ -88,7 +88,7 @@ static inline uint32_t rotr32( const uint32_t w, const unsigned c )
     G(m,7,v[ 3],v[ 4],v[ 9],v[14]); \
   } while(0)
 
-static void Wifi_Rand_Core_Compress( Wifi_Rand_State *S, const uint8_t in[WIFI_RAND_CORE_BLOCKBYTES] )
+static void Wifi_Rand_Core_Compress( Wifi_Rand_State *S, const uint8_t in[WIFI_RAND_BLOCKBYTES] )
 {
   uint32_t m_1[16], m_2[16];
   uint32_t v[16];
@@ -136,19 +136,19 @@ void Wifi_Rand_Core_Update( Wifi_Rand_State *S, const void *pin, size_t inlen )
   if( inlen > 0 )
   {
     size_t left = S->buflen;
-    size_t fill = WIFI_RAND_CORE_BLOCKBYTES - left;
+    size_t fill = WIFI_RAND_BLOCKBYTES - left;
     if( inlen > fill )
     {
       S->buflen = 0;
       memcpy( S->buf + left, in, fill ); /* Fill buffer */
-      Wifi_Rand_Core_IncrementCounter( S, WIFI_RAND_CORE_BLOCKBYTES );
+      Wifi_Rand_Core_IncrementCounter( S, WIFI_RAND_BLOCKBYTES );
       Wifi_Rand_Core_Compress( S, S->buf ); /* Compress */
       in += fill; inlen -= fill;
-      while(inlen > WIFI_RAND_CORE_BLOCKBYTES) {
-        Wifi_Rand_Core_IncrementCounter(S, WIFI_RAND_CORE_BLOCKBYTES);
+      while(inlen > WIFI_RAND_BLOCKBYTES) {
+        Wifi_Rand_Core_IncrementCounter(S, WIFI_RAND_BLOCKBYTES);
         Wifi_Rand_Core_Compress( S, in );
-        in += WIFI_RAND_CORE_BLOCKBYTES;
-        inlen -= WIFI_RAND_CORE_BLOCKBYTES;
+        in += WIFI_RAND_BLOCKBYTES;
+        inlen -= WIFI_RAND_BLOCKBYTES;
       }
     }
     memcpy( S->buf + S->buflen, in, inlen );
@@ -164,7 +164,7 @@ void Wifi_Rand_Core_Final( Wifi_Rand_State *S, void *out, size_t outlen )
 
   Wifi_Rand_Core_IncrementCounter( S, ( uint32_t )S->buflen );
   Wifi_Rand_Core_SetLastblock( S );
-  memset( S->buf + S->buflen, 0, WIFI_RAND_CORE_BLOCKBYTES - S->buflen ); /* Padding */
+  memset( S->buf + S->buflen, 0, WIFI_RAND_BLOCKBYTES - S->buflen ); /* Padding */
   Wifi_Rand_Core_Compress( S, S->buf );
 
   memcpy( out, S->h, outlen );
