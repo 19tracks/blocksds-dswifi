@@ -22,38 +22,38 @@ static const uint8_t Wifi_Rand_Core_Sigma[16] CACHE_ALIGNED =
   2, 6, 3, 10, 7, 0, 4, 13, 1, 11, 12, 5, 9, 14, 15, 8
 };
 
-static void Wifi_Rand_Core_SetLastnode( Wifi_Rand_Core_State *S )
+static void Wifi_Rand_Core_SetLastnode( Wifi_Rand_State *S )
 {
   S->f[1] = (uint32_t)-1;
 }
 
 /* Some helper functions, not necessarily useful */
-static int Wifi_Rand_Core_IsLastblock( const Wifi_Rand_Core_State *S )
+static int Wifi_Rand_Core_IsLastblock( const Wifi_Rand_State *S )
 {
   return S->f[0] != 0;
 }
 
-static void Wifi_Rand_Core_SetLastblock( Wifi_Rand_Core_State *S )
+static void Wifi_Rand_Core_SetLastblock( Wifi_Rand_State *S )
 {
   if( S->last_node ) Wifi_Rand_Core_SetLastnode( S );
 
   S->f[0] = (uint32_t)-1;
 }
 
-static void Wifi_Rand_Core_IncrementCounter( Wifi_Rand_Core_State *S, const uint32_t inc )
+static void Wifi_Rand_Core_IncrementCounter( Wifi_Rand_State *S, const uint32_t inc )
 {
   S->t[0] += inc;
   S->t[1] += ( S->t[0] < inc );
 }
 
-static void Wifi_Rand_Core_Init0( Wifi_Rand_Core_State *S )
+static void Wifi_Rand_Core_Init0( Wifi_Rand_State *S )
 {
-  memset( S, 0, sizeof( Wifi_Rand_Core_State ) );
+  memset( S, 0, sizeof( Wifi_Rand_State ) );
   memcpy( S->h, Wifi_Rand_Core_Iv, sizeof(Wifi_Rand_Core_Iv) );
 }
 
 /* init2 xors IV with input parameter block */
-void Wifi_Rand_Core_InitCounter( Wifi_Rand_Core_State *S, const uint32_t counter )
+void Wifi_Rand_Core_InitCounter( Wifi_Rand_State *S, const uint32_t counter )
 {
   Wifi_Rand_Core_Init0( S );
   S->h[0] ^= counter;
@@ -88,7 +88,7 @@ static inline uint32_t rotr32( const uint32_t w, const unsigned c )
     G(m,7,v[ 3],v[ 4],v[ 9],v[14]); \
   } while(0)
 
-static void Wifi_Rand_Core_Compress( Wifi_Rand_Core_State *S, const uint8_t in[WIFI_RAND_CORE_BLOCKBYTES] )
+static void Wifi_Rand_Core_Compress( Wifi_Rand_State *S, const uint8_t in[WIFI_RAND_CORE_BLOCKBYTES] )
 {
   uint32_t m_1[16], m_2[16];
   uint32_t v[16];
@@ -130,7 +130,7 @@ static void Wifi_Rand_Core_Compress( Wifi_Rand_Core_State *S, const uint8_t in[W
 #undef G
 #undef ROUND
 
-void Wifi_Rand_Core_Update( Wifi_Rand_Core_State *S, const void *pin, size_t inlen )
+void Wifi_Rand_Core_Update( Wifi_Rand_State *S, const void *pin, size_t inlen )
 {
   const unsigned char * in = (const unsigned char *)pin;
   if( inlen > 0 )
@@ -156,7 +156,7 @@ void Wifi_Rand_Core_Update( Wifi_Rand_Core_State *S, const void *pin, size_t inl
   }
 }
 
-void Wifi_Rand_Core_Final( Wifi_Rand_Core_State *S, void *out, size_t outlen )
+void Wifi_Rand_Core_Final( Wifi_Rand_State *S, void *out, size_t outlen )
 {
   assert( out != NULL);
   assert( outlen >= S->outlen );

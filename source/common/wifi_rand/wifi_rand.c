@@ -6,20 +6,20 @@
 #include "wifi_rand.h"
 
 void Wifi_Rand_Init( Wifi_Rand_State *S ) {
-  Wifi_Rand_Core_InitCounter( S->S, 0 );
+  Wifi_Rand_Core_InitCounter( S, 0 );
 }
 
 void Wifi_Rand_Finish(Wifi_Rand_State *S, Wifi_Rand_FinishedState *F) {
   /* Finalize the root hash */
-  Wifi_Rand_Core_State C[1];
-  memcpy(C, S->S, sizeof(C));
+  Wifi_Rand_State C[1];
+  memcpy(C, S, sizeof(C));
   Wifi_Rand_Core_Final(C, F->root, WIFI_RAND_CORE_OUTBYTES);
   F->buflen = 0;
   F->counter = 0;
 }
 
 static void Wifi_Rand_FinishedReadBlock(Wifi_Rand_FinishedState *F, uint8_t out[WIFI_RAND_CORE_OUTBYTES]) {
-  Wifi_Rand_Core_State C[1];
+  Wifi_Rand_State C[1];
 
   /* Initialize state */
   // pre-increment so we never use 0, as that's the counter we
