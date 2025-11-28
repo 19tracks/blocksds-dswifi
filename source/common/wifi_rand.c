@@ -132,7 +132,7 @@ static void Wifi_Rand_Compress( Wifi_Rand_State *S, const uint8_t in[WIFI_RAND_B
 #undef G
 #undef ROUND
 
-static void Wifi_Rand_Final( Wifi_Rand_State *S, void *out, size_t outlen )
+static void Wifi_Rand_InnerFinish( Wifi_Rand_State *S, void *out, size_t outlen )
 {
   assert( out != NULL);
   assert( !Wifi_Rand_IsLastblock( S ) );
@@ -181,7 +181,7 @@ void Wifi_Rand_Finish(Wifi_Rand_State *S, Wifi_Rand_FinishedState *F) {
   /* Finalize the root hash */
   Wifi_Rand_State C[1];
   memcpy(C, S, sizeof(C));
-  Wifi_Rand_Final(C, F->root, WIFI_RAND_OUTBYTES);
+  Wifi_Rand_InnerFinish(C, F->root, WIFI_RAND_OUTBYTES);
   F->buflen = 0;
   F->counter = 0;
 }
@@ -195,7 +195,7 @@ static void Wifi_Rand_FinishedReadBlock(Wifi_Rand_FinishedState *F, uint8_t out[
   Wifi_Rand_InitCounter(C, ++F->counter);
   /* Process key if needed */
   Wifi_Rand_Update(C, F->root, WIFI_RAND_OUTBYTES);
-  Wifi_Rand_Final(C, out, WIFI_RAND_OUTBYTES);
+  Wifi_Rand_InnerFinish(C, out, WIFI_RAND_OUTBYTES);
 }
 
 void Wifi_Rand_FinishedReadBytes(Wifi_Rand_FinishedState *F, void *outv, size_t outlen) {
