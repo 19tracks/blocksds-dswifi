@@ -206,7 +206,6 @@ void Wifi_Rand_FinishedReadBytes(Wifi_Rand_FinishedState *F, void *outv, size_t 
     uint8_t *out = outv;
 
     assert(out != NULL);
-    assert(outlen != 0);
 
     // if outlen is a multiple of the output block size (which is
     // likely if using 256-bit cryptography, since the output block
