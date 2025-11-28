@@ -7,7 +7,7 @@
 
 #include <dswifi_common.h>
 
-#include "wifi_rand/wifi_rand.h"
+#include "common/wifi_rand.h"
 #include "common/spinlock.h"
 
 #ifdef ARM7

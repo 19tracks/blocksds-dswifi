@@ -17,7 +17,7 @@
 #include "common/common_ntr_defs.h"
 #include "common/ieee_defs.h"
 #include "common/spinlock.h"
-#include "common/wifi_rand/wifi_rand.h"
+#include "common/wifi_rand.h"
 
 // Cached mirror. This should only be used when initializing the struct
 static Wifi_MainStruct *WifiDataCached = NULL;

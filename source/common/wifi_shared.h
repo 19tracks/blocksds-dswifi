@@ -12,7 +12,7 @@
 #include <nds/arm9/cp15_asm.h>
 #include <dswifi_common.h>
 
-#include "common/wifi_rand/wifi_rand.h"
+#include "common/wifi_rand.h"
 
 
 // Space reserved for incoming and outgoing packets
