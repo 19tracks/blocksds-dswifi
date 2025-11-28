@@ -5,13 +5,13 @@
 #include "wifi_rand.h"
 #include "wifi_rand_impl.h"
 
-static const uint32_t wifi_rand_core_IV[8] =
+static const uint32_t Wifi_Rand_Core_Iv[8] =
 {
   0x6A09E667UL, 0xBB67AE85UL, 0x3C6EF372UL, 0xA54FF53AUL,
   0x510E527FUL, 0x9B05688CUL, 0x1F83D9ABUL, 0x5BE0CD19UL
 };
 
-static const uint8_t wifi_rand_core_sigma[10][16] =
+static const uint8_t Wifi_Rand_Core_Sigma[10][16] =
 {
   {  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15 } ,
   { 14, 10,  4,  8,  9, 15, 13,  6,  1, 12,  0,  2, 11,  7,  5,  3 } ,
@@ -25,45 +25,45 @@ static const uint8_t wifi_rand_core_sigma[10][16] =
   { 10,  2,  8,  4,  7,  6,  1,  5, 15, 11,  9, 14,  3, 12, 13 , 0 } ,
 };
 
-static void wifi_rand_core_set_lastnode( wifi_rand_core_state *S )
+static void Wifi_Rand_Core_SetLastnode( Wifi_Rand_Core_State *S )
 {
   S->f[1] = (uint32_t)-1;
 }
 
 /* Some helper functions, not necessarily useful */
-static int wifi_rand_core_is_lastblock( const wifi_rand_core_state *S )
+static int Wifi_Rand_Core_IsLastblock( const Wifi_Rand_Core_State *S )
 {
   return S->f[0] != 0;
 }
 
-static void wifi_rand_core_set_lastblock( wifi_rand_core_state *S )
+static void Wifi_Rand_Core_SetLastblock( Wifi_Rand_Core_State *S )
 {
-  if( S->last_node ) wifi_rand_core_set_lastnode( S );
+  if( S->last_node ) Wifi_Rand_Core_SetLastnode( S );
 
   S->f[0] = (uint32_t)-1;
 }
 
-static void wifi_rand_core_increment_counter( wifi_rand_core_state *S, const uint32_t inc )
+static void Wifi_Rand_Core_IncrementCounter( Wifi_Rand_Core_State *S, const uint32_t inc )
 {
   S->t[0] += inc;
   S->t[1] += ( S->t[0] < inc );
 }
 
-static void wifi_rand_core_init0( wifi_rand_core_state *S )
+static void Wifi_Rand_Core_Init0( Wifi_Rand_Core_State *S )
 {
   size_t i;
-  memset( S, 0, sizeof( wifi_rand_core_state ) );
+  memset( S, 0, sizeof( Wifi_Rand_Core_State ) );
 
-  for( i = 0; i < 8; ++i ) S->h[i] = wifi_rand_core_IV[i];
+  for( i = 0; i < 8; ++i ) S->h[i] = Wifi_Rand_Core_Iv[i];
 }
 
 /* init2 xors IV with input parameter block */
-int wifi_rand_core_init_param( wifi_rand_core_state *S, const wifi_rand_core_param *P )
+int Wifi_Rand_Core_InitParam( Wifi_Rand_Core_State *S, const Wifi_Rand_Core_Param *P )
 {
   const unsigned char *p = ( const unsigned char * )( P );
   size_t i;
 
-  wifi_rand_core_init0( S );
+  Wifi_Rand_Core_Init0( S );
 
   /* IV XOR ParamBlock */
   for( i = 0; i < 8; ++i )
@@ -75,9 +75,9 @@ int wifi_rand_core_init_param( wifi_rand_core_state *S, const wifi_rand_core_par
 
 
 /* Sequential wifi_rand_core initialization */
-int wifi_rand_core_init( wifi_rand_core_state *S, size_t outlen )
+int Wifi_Rand_Core_Init( Wifi_Rand_Core_State *S, size_t outlen )
 {
-  wifi_rand_core_param P[1];
+  Wifi_Rand_Core_Param P[1];
 
   /* Move interval verification here? */
   if ( ( !outlen ) || ( outlen > WIFI_RAND_CORE_OUTBYTES ) ) return -1;
@@ -94,12 +94,12 @@ int wifi_rand_core_init( wifi_rand_core_state *S, size_t outlen )
   /* memset(P->reserved, 0, sizeof(P->reserved) ); */
   memset( P->salt,     0, sizeof( P->salt ) );
   memset( P->personal, 0, sizeof( P->personal ) );
-  return wifi_rand_core_init_param( S, P );
+  return Wifi_Rand_Core_InitParam( S, P );
 }
 
-int wifi_rand_core_init_key( wifi_rand_core_state *S, size_t outlen, const void *key, size_t keylen )
+int Wifi_Rand_Core_InitKey( Wifi_Rand_Core_State *S, size_t outlen, const void *key, size_t keylen )
 {
-  wifi_rand_core_param P[1];
+  Wifi_Rand_Core_Param P[1];
 
   if ( ( !outlen ) || ( outlen > WIFI_RAND_CORE_OUTBYTES ) ) return -1;
 
@@ -118,13 +118,13 @@ int wifi_rand_core_init_key( wifi_rand_core_state *S, size_t outlen, const void 
   memset( P->salt,     0, sizeof( P->salt ) );
   memset( P->personal, 0, sizeof( P->personal ) );
 
-  if( wifi_rand_core_init_param( S, P ) < 0 ) return -1;
+  if( Wifi_Rand_Core_InitParam( S, P ) < 0 ) return -1;
 
   {
     uint8_t block[WIFI_RAND_CORE_BLOCKBYTES];
     memset( block, 0, WIFI_RAND_CORE_BLOCKBYTES );
     memcpy( block, key, keylen );
-    wifi_rand_core_update( S, block, WIFI_RAND_CORE_BLOCKBYTES );
+    Wifi_Rand_Core_Update( S, block, WIFI_RAND_CORE_BLOCKBYTES );
     secure_zero_memory( block, WIFI_RAND_CORE_BLOCKBYTES ); /* Burn the key from stack */
   }
   return 0;
@@ -132,11 +132,11 @@ int wifi_rand_core_init_key( wifi_rand_core_state *S, size_t outlen, const void 
 
 #define G(r,i,a,b,c,d)                      \
   do {                                      \
-    a = a + b + m[wifi_rand_core_sigma[r][2*i+0]]; \
+    a = a + b + m[Wifi_Rand_Core_Sigma[r][2*i+0]]; \
     d = rotr32(d ^ a, 16);                  \
     c = c + d;                              \
     b = rotr32(b ^ c, 12);                  \
-    a = a + b + m[wifi_rand_core_sigma[r][2*i+1]]; \
+    a = a + b + m[Wifi_Rand_Core_Sigma[r][2*i+1]]; \
     d = rotr32(d ^ a, 8);                   \
     c = c + d;                              \
     b = rotr32(b ^ c, 7);                   \
@@ -154,7 +154,7 @@ int wifi_rand_core_init_key( wifi_rand_core_state *S, size_t outlen, const void 
     G(r,7,v[ 3],v[ 4],v[ 9],v[14]); \
   } while(0)
 
-static void wifi_rand_core_compress( wifi_rand_core_state *S, const uint8_t in[WIFI_RAND_CORE_BLOCKBYTES] )
+static void Wifi_Rand_Core_Compress( Wifi_Rand_Core_State *S, const uint8_t in[WIFI_RAND_CORE_BLOCKBYTES] )
 {
   uint32_t m[16];
   uint32_t v[16];
@@ -168,14 +168,14 @@ static void wifi_rand_core_compress( wifi_rand_core_state *S, const uint8_t in[W
     v[i] = S->h[i];
   }
 
-  v[ 8] = wifi_rand_core_IV[0];
-  v[ 9] = wifi_rand_core_IV[1];
-  v[10] = wifi_rand_core_IV[2];
-  v[11] = wifi_rand_core_IV[3];
-  v[12] = S->t[0] ^ wifi_rand_core_IV[4];
-  v[13] = S->t[1] ^ wifi_rand_core_IV[5];
-  v[14] = S->f[0] ^ wifi_rand_core_IV[6];
-  v[15] = S->f[1] ^ wifi_rand_core_IV[7];
+  v[ 8] = Wifi_Rand_Core_Iv[0];
+  v[ 9] = Wifi_Rand_Core_Iv[1];
+  v[10] = Wifi_Rand_Core_Iv[2];
+  v[11] = Wifi_Rand_Core_Iv[3];
+  v[12] = S->t[0] ^ Wifi_Rand_Core_Iv[4];
+  v[13] = S->t[1] ^ Wifi_Rand_Core_Iv[5];
+  v[14] = S->f[0] ^ Wifi_Rand_Core_Iv[6];
+  v[15] = S->f[1] ^ Wifi_Rand_Core_Iv[7];
 
   ROUND( 0 );
   ROUND( 1 );
@@ -196,7 +196,7 @@ static void wifi_rand_core_compress( wifi_rand_core_state *S, const uint8_t in[W
 #undef G
 #undef ROUND
 
-int wifi_rand_core_update( wifi_rand_core_state *S, const void *pin, size_t inlen )
+int Wifi_Rand_Core_Update( Wifi_Rand_Core_State *S, const void *pin, size_t inlen )
 {
   const unsigned char * in = (const unsigned char *)pin;
   if( inlen > 0 )
@@ -207,12 +207,12 @@ int wifi_rand_core_update( wifi_rand_core_state *S, const void *pin, size_t inle
     {
       S->buflen = 0;
       memcpy( S->buf + left, in, fill ); /* Fill buffer */
-      wifi_rand_core_increment_counter( S, WIFI_RAND_CORE_BLOCKBYTES );
-      wifi_rand_core_compress( S, S->buf ); /* Compress */
+      Wifi_Rand_Core_IncrementCounter( S, WIFI_RAND_CORE_BLOCKBYTES );
+      Wifi_Rand_Core_Compress( S, S->buf ); /* Compress */
       in += fill; inlen -= fill;
       while(inlen > WIFI_RAND_CORE_BLOCKBYTES) {
-        wifi_rand_core_increment_counter(S, WIFI_RAND_CORE_BLOCKBYTES);
-        wifi_rand_core_compress( S, in );
+        Wifi_Rand_Core_IncrementCounter(S, WIFI_RAND_CORE_BLOCKBYTES);
+        Wifi_Rand_Core_Compress( S, in );
         in += WIFI_RAND_CORE_BLOCKBYTES;
         inlen -= WIFI_RAND_CORE_BLOCKBYTES;
       }
@@ -223,7 +223,7 @@ int wifi_rand_core_update( wifi_rand_core_state *S, const void *pin, size_t inle
   return 0;
 }
 
-int wifi_rand_core_final( wifi_rand_core_state *S, void *out, size_t outlen )
+int Wifi_Rand_Core_Final( Wifi_Rand_Core_State *S, void *out, size_t outlen )
 {
   uint8_t buffer[WIFI_RAND_CORE_OUTBYTES] = {0};
   size_t i;
@@ -231,13 +231,13 @@ int wifi_rand_core_final( wifi_rand_core_state *S, void *out, size_t outlen )
   if( out == NULL || outlen < S->outlen )
     return -1;
 
-  if( wifi_rand_core_is_lastblock( S ) )
+  if( Wifi_Rand_Core_IsLastblock( S ) )
     return -1;
 
-  wifi_rand_core_increment_counter( S, ( uint32_t )S->buflen );
-  wifi_rand_core_set_lastblock( S );
+  Wifi_Rand_Core_IncrementCounter( S, ( uint32_t )S->buflen );
+  Wifi_Rand_Core_SetLastblock( S );
   memset( S->buf + S->buflen, 0, WIFI_RAND_CORE_BLOCKBYTES - S->buflen ); /* Padding */
-  wifi_rand_core_compress( S, S->buf );
+  Wifi_Rand_Core_Compress( S, S->buf );
 
   for( i = 0; i < 8; ++i ) /* Output full hash to temp buffer */
     store32( buffer + sizeof( S->h[i] ) * i, S->h[i] );
@@ -285,26 +285,26 @@ int main( void )
   for(step = 1; step < WIFI_RAND_CORE_BLOCKBYTES; ++step) {
     for (i = 0; i < WIFI_RAND_KAT_LENGTH; ++i) {
       uint8_t hash[WIFI_RAND_CORE_OUTBYTES];
-      wifi_rand_core_state S;
+      Wifi_Rand_Core_State S;
       uint8_t * p = buf;
       size_t mlen = i;
       int err = 0;
 
-      if( (err = wifi_rand_core_init_key(&S, WIFI_RAND_CORE_OUTBYTES, key, WIFI_RAND_CORE_KEYBYTES)) < 0 ) {
+      if( (err = Wifi_Rand_Core_InitKey(&S, WIFI_RAND_CORE_OUTBYTES, key, WIFI_RAND_CORE_KEYBYTES)) < 0 ) {
         goto fail;
       }
 
       while (mlen >= step) {
-        if ( (err = wifi_rand_core_update(&S, p, step)) < 0 ) {
+        if ( (err = Wifi_Rand_Core_Update(&S, p, step)) < 0 ) {
           goto fail;
         }
         mlen -= step;
         p += step;
       }
-      if ( (err = wifi_rand_core_update(&S, p, mlen)) < 0) {
+      if ( (err = Wifi_Rand_Core_Update(&S, p, mlen)) < 0) {
         goto fail;
       }
-      if ( (err = wifi_rand_core_final(&S, hash, WIFI_RAND_CORE_OUTBYTES)) < 0) {
+      if ( (err = Wifi_Rand_Core_Final(&S, hash, WIFI_RAND_CORE_OUTBYTES)) < 0) {
         goto fail;
       }
 

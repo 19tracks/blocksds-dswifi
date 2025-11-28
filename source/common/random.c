@@ -23,9 +23,9 @@ void Wifi_RandomAddEntropy(uint32_t value)
 
     asm volatile ("" : : : "memory");
 
-    wifi_rand_update(
+    Wifi_Rand_Update(
         // okay to discard `volatile` with memory barriers in place
-        (wifi_rand_state*)&WifiData->entropyHasher.state,
+        (Wifi_Rand_State*)&WifiData->entropyHasher.state,
         &value,
         sizeof(value)
     );
@@ -43,15 +43,15 @@ uint32_t Wifi_Random(void)
 #ifdef ARM7
     char cpuDistinctValue = '7';
     volatile bool *dirty = &WifiData->entropyHasher.dirty7;
-    wifi_rand_finished_state *rngHasher = (wifi_rand_finished_state*)&WifiData->rngHasher7;
+    Wifi_Rand_FinishedState *rngHasher = (Wifi_Rand_FinishedState*)&WifiData->rngHasher7;
 #else
     char cpuDistinctValue = '9';
     volatile bool *dirty = &WifiData->entropyHasher.dirty9;
-    wifi_rand_finished_state *rngHasher = (wifi_rand_finished_state*)&WifiData->rngHasher9;
+    Wifi_Rand_FinishedState *rngHasher = (Wifi_Rand_FinishedState*)&WifiData->rngHasher9;
 #endif
 
     if(*dirty) {
-        wifi_rand_state entropyHasher;
+        Wifi_Rand_State entropyHasher;
 
         int oldIME = enterCriticalSection();
 #ifdef ARM9
@@ -67,8 +67,8 @@ uint32_t Wifi_Random(void)
 #ifdef ARM9
             Spinlock_Release(WifiData->entropyHasher);
 #endif
-            wifi_rand_update(&entropyHasher, &cpuDistinctValue, sizeof(cpuDistinctValue));
-            wifi_rand_finish(&entropyHasher, rngHasher);
+            Wifi_Rand_Update(&entropyHasher, &cpuDistinctValue, sizeof(cpuDistinctValue));
+            Wifi_Rand_Finish(&entropyHasher, rngHasher);
             *dirty = false;
         }
 #ifdef ARM9
@@ -80,7 +80,7 @@ uint32_t Wifi_Random(void)
     }
 
     uint32_t x;
-    wifi_rand_finished_read_bytes(rngHasher, &x, sizeof(x));
+    Wifi_Rand_FinishedReadBytes(rngHasher, &x, sizeof(x));
 
     return x;
 }

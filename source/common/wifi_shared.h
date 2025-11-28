@@ -160,7 +160,7 @@ typedef struct {
 // FIXME: comment, and also should we really be putting wifi_rand symbols in the
 // wi-fi headers and .a? can we reasonably avoid it?
 typedef struct {
-    wifi_rand_state state;
+    Wifi_Rand_State state;
     bool dirty7, dirty9;
     // As above, the ARM9 doesn't write to this, so the ARM7 is free to read
     // from it with no lock as long as interrupts are disabled.
@@ -283,7 +283,7 @@ typedef struct WIFI_MAINSTRUCT
     // generate random numbers. They are seeded from hardware_rng_seed by the
     // ARM7. They must never be set to zero.
     // FIXME: comment
-    wifi_rand_finished_state rngHasher7, rngHasher9;
+    Wifi_Rand_FinishedState rngHasher7, rngHasher9;
 
     // End
     // ---

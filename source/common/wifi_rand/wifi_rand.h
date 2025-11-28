@@ -14,7 +14,7 @@
 extern "C" {
 #endif
 
-  enum wifi_rand_core_constant
+  enum Wifi_Rand_Core_Constant
   {
     WIFI_RAND_CORE_BLOCKBYTES = 64,
     WIFI_RAND_CORE_OUTBYTES   = 32,
@@ -23,7 +23,7 @@ extern "C" {
     WIFI_RAND_CORE_PERSONALBYTES = 8
   };
 
-  typedef struct wifi_rand_core_state__
+  typedef struct Wifi_Rand_Core_State__
   {
     uint32_t h[8];
     uint32_t t[2];
@@ -32,10 +32,10 @@ extern "C" {
     size_t   buflen;
     size_t   outlen;
     uint8_t  last_node;
-  } wifi_rand_core_state;
+  } Wifi_Rand_Core_State;
 
 
-  WIFI_RAND_PACKED(struct wifi_rand_core_param__
+  WIFI_RAND_PACKED(struct Wifi_Rand_Core_Param__
   {
     uint8_t  digest_length; /* 1 */
     uint8_t  key_length;    /* 2 */
@@ -51,45 +51,45 @@ extern "C" {
     uint8_t  personal[WIFI_RAND_CORE_PERSONALBYTES];  /* 32 */
   });
 
-  typedef struct wifi_rand_core_param__ wifi_rand_core_param;
+  typedef struct Wifi_Rand_Core_Param__ Wifi_Rand_Core_Param;
 
-  typedef struct wifi_rand_state__
+  typedef struct Wifi_Rand_State__
   {
-    wifi_rand_core_state S[1];
-    wifi_rand_core_param P[1];
-  } wifi_rand_state;
+    Wifi_Rand_Core_State S[1];
+    Wifi_Rand_Core_Param P[1];
+  } Wifi_Rand_State;
 
   /*
      ->S->S->buflen still stores the number of bytes in the
      buffer, but those bytes end at buf[WIFI_RAND_CORE_OUTBYTES]
      instead of starting at buf[0].
   */
-  typedef struct wifi_rand_finished_state__
+  typedef struct Wifi_Rand_FinishedState__
   {
-    wifi_rand_core_param P[1];
+    Wifi_Rand_Core_Param P[1];
     uint8_t root[WIFI_RAND_CORE_OUTBYTES];
     uint8_t buf[WIFI_RAND_CORE_OUTBYTES];
     size_t  buflen;
-  } wifi_rand_finished_state;
+  } Wifi_Rand_FinishedState;
 
   /* Padded structs result in a compile-time error */
   enum {
-    WIFI_RAND_DUMMY_1 = 1/(int)(sizeof(wifi_rand_core_param) == WIFI_RAND_CORE_OUTBYTES)
+    WIFI_RAND_DUMMY_1 = 1/(int)(sizeof(Wifi_Rand_Core_Param) == WIFI_RAND_CORE_OUTBYTES)
   };
 
   /* Streaming API */
-  int wifi_rand_core_init( wifi_rand_core_state *S, size_t outlen );
-  int wifi_rand_core_init_key( wifi_rand_core_state *S, size_t outlen, const void *key, size_t keylen );
-  int wifi_rand_core_init_param( wifi_rand_core_state *S, const wifi_rand_core_param *P );
-  int wifi_rand_core_update( wifi_rand_core_state *S, const void *in, size_t inlen );
-  int wifi_rand_core_final( wifi_rand_core_state *S, void *out, size_t outlen );
+  int Wifi_Rand_Core_Init( Wifi_Rand_Core_State *S, size_t outlen );
+  int Wifi_Rand_Core_InitKey( Wifi_Rand_Core_State *S, size_t outlen, const void *key, size_t keylen );
+  int Wifi_Rand_Core_InitParam( Wifi_Rand_Core_State *S, const Wifi_Rand_Core_Param *P );
+  int Wifi_Rand_Core_Update( Wifi_Rand_Core_State *S, const void *in, size_t inlen );
+  int Wifi_Rand_Core_Final( Wifi_Rand_Core_State *S, void *out, size_t outlen );
 
   /* Variable output length API */
-  int wifi_rand_init( wifi_rand_state *S );
-  int wifi_rand_init_key( wifi_rand_state *S, const void *key, size_t keylen );
-  int wifi_rand_update( wifi_rand_state *S, const void *in, size_t inlen );
-  int wifi_rand_finish( wifi_rand_state *S, wifi_rand_finished_state *F );
-  int wifi_rand_finished_read_bytes( wifi_rand_finished_state *F, void *out, size_t outlen );
+  int Wifi_Rand_Init( Wifi_Rand_State *S );
+  int Wifi_Rand_InitKey( Wifi_Rand_State *S, const void *key, size_t keylen );
+  int Wifi_Rand_Update( Wifi_Rand_State *S, const void *in, size_t inlen );
+  int Wifi_Rand_Finish( Wifi_Rand_State *S, Wifi_Rand_FinishedState *F );
+  int Wifi_Rand_FinishedReadBytes( Wifi_Rand_FinishedState *F, void *out, size_t outlen );
 
 #if defined(__cplusplus)
 }
