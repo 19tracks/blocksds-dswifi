@@ -48,10 +48,8 @@ static void Wifi_Rand_Core_IncrementCounter( Wifi_Rand_Core_State *S, const uint
 
 static void Wifi_Rand_Core_Init0( Wifi_Rand_Core_State *S )
 {
-  size_t i;
   memset( S, 0, sizeof( Wifi_Rand_Core_State ) );
-
-  for( i = 0; i < 8; ++i ) S->h[i] = Wifi_Rand_Core_Iv[i];
+  memcpy( S->h, Wifi_Rand_Core_Iv, sizeof(Wifi_Rand_Core_Iv) );
 }
 
 /* init2 xors IV with input parameter block */
