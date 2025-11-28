@@ -33,13 +33,9 @@
     uint32_t counter;
   } Wifi_Rand_FinishedState;
 
-  /* Streaming API */
-  void Wifi_Rand_InitCounter( Wifi_Rand_State *S, const uint32_t counter );
-  void Wifi_Rand_Update( Wifi_Rand_State *S, const void *in, size_t inlen );
-  void Wifi_Rand_Final( Wifi_Rand_State *S, void *out, size_t outlen );
-
   /* Variable output length API */
   void Wifi_Rand_Init( Wifi_Rand_State *S );
+  void Wifi_Rand_Update( Wifi_Rand_State *S, const void *in, size_t inlen );
   void Wifi_Rand_Finish( Wifi_Rand_State *S, Wifi_Rand_FinishedState *F );
   void Wifi_Rand_FinishedReadBytes( Wifi_Rand_FinishedState *F, void *out, size_t outlen );
 
