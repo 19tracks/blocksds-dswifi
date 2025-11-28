@@ -2,9 +2,13 @@
 //
 // Copyright (C) 2025 Antonio Niño Díaz
 
+#include <string.h>
 #include <time.h>
 
 #include <dswifi_common.h>
+
+#include "blake2/blake2.h"
+#include "common/spinlock.h"
 
 #ifdef ARM7
 #include "arm7/ipc.h"
@@ -14,35 +18,69 @@
 
 void Wifi_RandomAddEntropy(uint32_t value)
 {
-    unsigned int shift = (WifiData->hardware_rng_seed + value) & 31;
+    int oldIME = enterCriticalSection();
+    while (Spinlock_Acquire(WifiData->entropyHasher) != SPINLOCK_OK);
 
-    WifiData->hardware_rng_seed ^= (value << shift) | (value >> (32 - shift));
+    asm volatile ("" : : : "memory");
 
-    WifiData->random7 ^= WifiData->hardware_rng_seed;
-    if (WifiData->random7 == 0)
-        WifiData->random7--;
+    blake2xs_update(
+        // okay to discard `volatile` with memory barriers in place
+        (blake2xs_state*)&WifiData->entropyHasher.state,
+        &value,
+        sizeof(value)
+    );
+    WifiData->entropyHasher.dirty7 = true;
+    WifiData->entropyHasher.dirty9 = true;
 
-    WifiData->random9 ^= WifiData->hardware_rng_seed;
-    if (WifiData->random9 == 0)
-        WifiData->random9--;
+    asm volatile ("" : : : "memory");
+
+    Spinlock_Release(WifiData->entropyHasher);
+    leaveCriticalSection(oldIME);
 }
 
-// Algorithm "xor" from p. 4 of Marsaglia, "Xorshift RNGs": xorshift32
 uint32_t Wifi_Random(void)
 {
 #ifdef ARM7
-    uint32_t x = WifiData->random7;
-    x ^= x << 13;
-    x ^= x >> 17;
-    x ^= x << 5;
-    WifiData->random7 = x;
+    char cpuDistinctValue = '7';
+    volatile bool *dirty = &WifiData->entropyHasher.dirty7;
+    blake2xs_finished_state *rngHasher = (blake2xs_finished_state*)&WifiData->rngHasher7;
 #else
-    uint32_t x = WifiData->random9;
-    x ^= x << 13;
-    x ^= x >> 17;
-    x ^= x << 5;
-    WifiData->random9 = x;
+    char cpuDistinctValue = '9';
+    volatile bool *dirty = &WifiData->entropyHasher.dirty9;
+    blake2xs_finished_state *rngHasher = (blake2xs_finished_state*)&WifiData->rngHasher9;
 #endif
+
+    if(*dirty) {
+        blake2xs_state entropyHasher;
+
+        int oldIME = enterCriticalSection();
+#ifdef ARM9
+        while (Spinlock_Acquire(WifiData->entropyHasher) != SPINLOCK_OK);
+#endif
+        asm volatile ("" : : : "memory");
+        if(*dirty) {
+            memcpy(
+                &entropyHasher,
+                (void*)&WifiData->entropyHasher.state,
+                sizeof(entropyHasher)
+            );
+#ifdef ARM9
+            Spinlock_Release(WifiData->entropyHasher);
+#endif
+            blake2xs_update(&entropyHasher, &cpuDistinctValue, sizeof(cpuDistinctValue));
+            blake2xs_finish(&entropyHasher, rngHasher);
+            *dirty = false;
+        }
+#ifdef ARM9
+        else {
+            Spinlock_Release(WifiData->entropyHasher);
+        }
+#endif
+        leaveCriticalSection(oldIME);
+    }
+
+    uint32_t x;
+    blake2xs_finished_read_bytes(rngHasher, &x, sizeof(x));
 
     return x;
 }

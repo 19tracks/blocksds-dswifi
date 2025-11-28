@@ -12,6 +12,9 @@
 #include <nds/arm9/cp15_asm.h>
 #include <dswifi_common.h>
 
+#include "common/blake2/blake2.h"
+
+
 // Space reserved for incoming and outgoing packets
 #define WIFI_RXBUFFER_SIZE  (1024 * 12)
 #define WIFI_TXBUFFER_SIZE  (1024 * 24)
@@ -154,6 +157,16 @@ typedef struct {
     u8 pmk[32];  // For WPA and WPA2
 } Wifi_ApSecurity;
 
+// FIXME: comment, and also should we really be putting blake2 symbols in the
+// wi-fi headers and .a? can we reasonably avoid it?
+typedef struct {
+    blake2xs_state state;
+    bool dirty7, dirty9;
+    // As above, the ARM9 doesn't write to this, so the ARM7 is free to read
+    // from it with no lock as long as interrupts are disabled.
+    u32 spinlock;
+} Wifi_EntropyHasher;
+
 // This struct is allocated in main RAM, but it is only accessed through an
 // uncached mirror. We use aligned_alloc() to ensure that the beginning of the
 // struct isn't in the same cache line as other variables, but we need to pad
@@ -263,12 +276,14 @@ typedef struct WIFI_MAINSTRUCT
 
     // Semirandom number updated at the convenience of the ARM7. Used for
     // initial seeds and such. Don't count on it being updated every frame.
-    u32 hardware_rng_seed;
+    // FIXME: comment
+    Wifi_EntropyHasher entropyHasher;
 
     // The following two values are normally used by each CPU when they
     // generate random numbers. They are seeded from hardware_rng_seed by the
     // ARM7. They must never be set to zero.
-    u32 random7, random9;
+    // FIXME: comment
+    blake2xs_finished_state rngHasher7, rngHasher9;
 
     // End
     // ---

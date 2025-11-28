@@ -17,6 +17,7 @@
 #include "common/common_ntr_defs.h"
 #include "common/ieee_defs.h"
 #include "common/spinlock.h"
+#include "common/blake2/blake2.h"
 
 // Cached mirror. This should only be used when initializing the struct
 static Wifi_MainStruct *WifiDataCached = NULL;
@@ -88,6 +89,14 @@ static bool Wifi_InitIPC(unsigned int flags)
     WifiData->hostPlayerNameLen = PersonalData->nameLen;
     for (u8 i = 0; i < PersonalData->nameLen; i++)
         WifiData->hostPlayerName[i] = PersonalData->name[i];
+
+    blake2xs_init((void*)&WifiData->entropyHasher.state, 0xFFFF);
+    WifiData->entropyHasher.dirty7 = true;
+    WifiData->entropyHasher.dirty9 = true;
+    // The spinlock was initialized to 0 with memset.
+    // Now since we wrote to entropyHasher.state with its
+    // `volatile` qualifier stripped:
+    asm volatile ("" : : : "memory");
 
     // Send the cached mirror to the ARM7 (the ARM7 doesn't have cache, so the
     // cached address in main RAM is enough).
