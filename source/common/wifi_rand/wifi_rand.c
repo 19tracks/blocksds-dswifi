@@ -89,6 +89,7 @@ static int Wifi_Rand_FinishedReadBlock(Wifi_Rand_FinishedState *F, uint8_t out[W
   if (Wifi_Rand_Core_Final(C, out, WIFI_RAND_CORE_OUTBYTES) < 0) {
     return -1;
   }
+
   store32(&P->node_offset, node_offset + 1);
 
   return 0;
