@@ -6,6 +6,8 @@
 #include "wifi_rand.h"
 #include "wifi_rand_impl.h"
 
+static const char Wifi_Rand_Personal[WIFI_RAND_CORE_PERSONALBYTES] __attribute__ ((nonstring)) = "BlkDSWRn";
+
 void Wifi_Rand_Init( Wifi_Rand_State *S ) {
   /* Initialize parameter block */
   S->P->digest_length = WIFI_RAND_CORE_OUTBYTES;
@@ -18,7 +20,7 @@ void Wifi_Rand_Init( Wifi_Rand_State *S ) {
   S->P->node_depth    = 0;
   S->P->inner_length  = 0;
   memset( S->P->salt,     0, sizeof( S->P->salt ) );
-  memset( S->P->personal, 0, sizeof( S->P->personal ) );
+  memcpy( S->P->personal, Wifi_Rand_Personal, WIFI_RAND_CORE_PERSONALBYTES );
 
   Wifi_Rand_Core_InitParam( S->S, S->P );
 }
