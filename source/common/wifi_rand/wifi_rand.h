@@ -8,9 +8,6 @@
   {
     WIFI_RAND_BLOCKBYTES = 64,
     WIFI_RAND_OUTBYTES   = 32,
-    WIFI_RAND_KEYBYTES   = 32,
-    WIFI_RAND_SALTBYTES  = 8,
-    WIFI_RAND_PERSONALBYTES = 8
   };
 
   typedef struct Wifi_Rand_State__
