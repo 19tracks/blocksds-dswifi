@@ -101,8 +101,8 @@ extern "C" {
   int blake2s_final( blake2s_state *S, void *out, size_t outlen );
 
   /* Variable output length API */
-  int blake2xs_init( blake2xs_state *S, const size_t outlen );
-  int blake2xs_init_key( blake2xs_state *S, const size_t outlen, const void *key, size_t keylen );
+  int blake2xs_init( blake2xs_state *S );
+  int blake2xs_init_key( blake2xs_state *S, const void *key, size_t keylen );
   int blake2xs_update( blake2xs_state *S, const void *in, size_t inlen );
   int blake2xs_finish( blake2xs_state *S, blake2xs_finished_state *F );
   int blake2xs_finished_read_bytes( blake2xs_finished_state *F, void *out, size_t outlen );

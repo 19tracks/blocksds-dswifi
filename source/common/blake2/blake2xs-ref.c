@@ -23,16 +23,12 @@
 #include "blake2.h"
 #include "blake2-impl.h"
 
-int blake2xs_init( blake2xs_state *S, const size_t outlen ) {
-  return blake2xs_init_key(S, outlen, NULL, 0);
+int blake2xs_init( blake2xs_state *S ) {
+  return blake2xs_init_key(S, NULL, 0);
 }
 
-int blake2xs_init_key( blake2xs_state *S, const size_t outlen, const void *key, size_t keylen )
+int blake2xs_init_key( blake2xs_state *S, const void *key, size_t keylen )
 {
-  if ( outlen != 0xFFFFUL ) {
-    return -1;
-  }
-
   if (NULL != key && keylen > BLAKE2S_KEYBYTES) {
     return -1;
   }
@@ -48,7 +44,7 @@ int blake2xs_init_key( blake2xs_state *S, const size_t outlen, const void *key, 
   S->P->depth         = 1;
   store32( &S->P->leaf_length, 0 );
   store32( &S->P->node_offset, 0 );
-  store16( &S->P->xof_length, outlen );
+  store16( &S->P->xof_length, 0xFFFFUL );
   S->P->node_depth    = 0;
   S->P->inner_length  = 0;
   memset( S->P->salt,     0, sizeof( S->P->salt ) );
