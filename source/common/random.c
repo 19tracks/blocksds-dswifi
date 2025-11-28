@@ -16,6 +16,7 @@
 #include "arm9/ipc.h"
 #endif
 
+#ifdef ARM7
 void Wifi_RandomAddEntropy(uint32_t value)
 {
     int oldIME = enterCriticalSection();
@@ -37,6 +38,7 @@ void Wifi_RandomAddEntropy(uint32_t value)
     Spinlock_Release(WifiData->entropyHasher);
     leaveCriticalSection(oldIME);
 }
+#endif
 
 uint32_t Wifi_Random(void)
 {
