@@ -97,29 +97,56 @@ int blake2xs_finish(blake2xs_state *S, blake2xs_finished_state *F) {
   return 0;
 }
 
-int blake2xs_finished_read_bytes(blake2xs_finished_state *F, void *out, size_t outlen) {
-  if (NULL == out || outlen == 0) {
-    return -1;
-  }
-
+static int blake2xs_finished_read_block(blake2xs_finished_state *F, uint8_t out[BLAKE2S_OUTBYTES]) {
   blake2s_state C[1];
   blake2s_param *P = F->P;
 
   const uint32_t node_offset = load32(&P->node_offset);
 
-  for (size_t i = 0; outlen > 0; ++i) {
-    const size_t block_size = (outlen < BLAKE2S_OUTBYTES) ? outlen : BLAKE2S_OUTBYTES;
-    /* Initialize state */
-    P->digest_length = block_size;
-    blake2s_init_param(C, P);
-    /* Process key if needed */
-    blake2s_update(C, F->root, BLAKE2S_OUTBYTES);
-    if (blake2s_final(C, (uint8_t *)out + i * BLAKE2S_OUTBYTES, block_size) < 0) {
-        return -1;
-    }
-    store32(&P->node_offset, node_offset + i);
-    outlen -= block_size;
+  /* Initialize state */
+  P->digest_length = BLAKE2S_OUTBYTES;
+  blake2s_init_param(C, P);
+  /* Process key if needed */
+  blake2s_update(C, F->root, BLAKE2S_OUTBYTES);
+  if (blake2s_final(C, out, BLAKE2S_OUTBYTES) < 0) {
+    return -1;
   }
+  store32(&P->node_offset, node_offset + 1);
+
+  return 0;
+}
+
+int blake2xs_finished_read_bytes(blake2xs_finished_state *F, void *outv, size_t outlen) {
+  uint8_t *out = outv;
+
+  if (NULL == out || outlen == 0) {
+    return -1;
+  }
+
+  if (outlen <= F->buflen) {
+    memcpy(out, &F->buf[BLAKE2S_OUTBYTES - F->buflen], outlen);
+    F->buflen -= outlen;
+    return 0;
+  }
+
+  memcpy(out, &F->buf[BLAKE2S_OUTBYTES - F->buflen], F->buflen);
+  out += F->buflen;
+  outlen -= F->buflen;
+
+  while (outlen >= BLAKE2S_OUTBYTES) {
+    if (blake2xs_finished_read_block(F, out) < 0) {
+      return -1;
+    }
+    out += BLAKE2S_OUTBYTES;
+    outlen -= BLAKE2S_OUTBYTES;
+  }
+
+  if (blake2xs_finished_read_block(F, F->buf) < 0) {
+    return -1;
+  }
+
+  memcpy(out, F->buf, outlen);
+  F->buflen = BLAKE2S_OUTBYTES - outlen;
 
   return 0;
 }
