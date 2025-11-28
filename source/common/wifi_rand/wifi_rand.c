@@ -5,23 +5,8 @@
 
 #include "wifi_rand.h"
 
-static const char Wifi_Rand_Personal[WIFI_RAND_CORE_PERSONALBYTES] __attribute__ ((nonstring)) = "BlkDSWRn";
-
 void Wifi_Rand_Init( Wifi_Rand_State *S ) {
-  /* Initialize parameter block */
-  S->P->digest_length = WIFI_RAND_CORE_OUTBYTES;
-  S->P->key_length    = 0;
-  S->P->fanout        = 1;
-  S->P->depth         = 1;
-  S->P->leaf_length   = 0;
-  S->P->node_offset   = 0;
-  S->P->xof_length    = 0xFFFFUL;
-  S->P->node_depth    = 0;
-  S->P->inner_length  = 0;
-  memset( S->P->salt,     0, sizeof( S->P->salt ) );
-  memcpy( S->P->personal, Wifi_Rand_Personal, WIFI_RAND_CORE_PERSONALBYTES );
-
-  Wifi_Rand_Core_InitParam( S->S, S->P );
+  Wifi_Rand_Core_InitCounter( S->S, 0 );
 }
 
 void Wifi_Rand_Finish(Wifi_Rand_State *S, Wifi_Rand_FinishedState *F) {
@@ -29,34 +14,20 @@ void Wifi_Rand_Finish(Wifi_Rand_State *S, Wifi_Rand_FinishedState *F) {
   Wifi_Rand_Core_State C[1];
   memcpy(C, S->S, sizeof(C));
   Wifi_Rand_Core_Final(C, F->root, WIFI_RAND_CORE_OUTBYTES);
-
-  /* Set common block structure values */
-  /* Copy values from parent instance, and only change the ones below */
-  Wifi_Rand_Core_Param *P = F->P;
-  memcpy(P, S->P, sizeof(Wifi_Rand_Core_Param));
-  P->key_length = 0;
-  P->fanout = 0;
-  P->depth = 0;
-  P->leaf_length = WIFI_RAND_CORE_OUTBYTES;
-  P->node_offset = 0;
-  P->node_depth = 0;
-  P->inner_length = WIFI_RAND_CORE_OUTBYTES;
-
   F->buflen = 0;
+  F->counter = 0;
 }
 
 static void Wifi_Rand_FinishedReadBlock(Wifi_Rand_FinishedState *F, uint8_t out[WIFI_RAND_CORE_OUTBYTES]) {
   Wifi_Rand_Core_State C[1];
-  Wifi_Rand_Core_Param *P = F->P;
 
   /* Initialize state */
-  P->digest_length = WIFI_RAND_CORE_OUTBYTES;
-  Wifi_Rand_Core_InitParam(C, P);
+  // pre-increment so we never use 0, as that's the counter we
+  // use pre-finalization
+  Wifi_Rand_Core_InitCounter(C, ++F->counter);
   /* Process key if needed */
   Wifi_Rand_Core_Update(C, F->root, WIFI_RAND_CORE_OUTBYTES);
   Wifi_Rand_Core_Final(C, out, WIFI_RAND_CORE_OUTBYTES);
-
-  P->node_offset++;
 }
 
 void Wifi_Rand_FinishedReadBytes(Wifi_Rand_FinishedState *F, void *outv, size_t outlen) {

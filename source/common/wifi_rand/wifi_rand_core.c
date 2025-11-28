@@ -53,21 +53,10 @@ static void Wifi_Rand_Core_Init0( Wifi_Rand_Core_State *S )
 }
 
 /* init2 xors IV with input parameter block */
-void Wifi_Rand_Core_InitParam( Wifi_Rand_Core_State *S, const Wifi_Rand_Core_Param *P )
+void Wifi_Rand_Core_InitCounter( Wifi_Rand_Core_State *S, const uint32_t counter )
 {
-  const unsigned char *p = ( const unsigned char * )( P );
-  size_t i;
-  uint32_t p_word;
-
   Wifi_Rand_Core_Init0( S );
-
-  /* IV XOR ParamBlock */
-  for( i = 0; i < 8; ++i ) {
-    memcpy( &p_word, &p[i * 4], sizeof(p_word) );
-    S->h[i] ^= p_word;
-  }
-
-  S->outlen = P->digest_length;
+  S->h[0] ^= counter;
 }
 
 static inline uint32_t rotr32( const uint32_t w, const unsigned c )
