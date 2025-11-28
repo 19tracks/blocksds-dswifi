@@ -127,38 +127,37 @@ int Wifi_Rand_Core_InitKey( Wifi_Rand_Core_State *S, size_t outlen, const void *
   return 0;
 }
 
-#define G(sigma,i,a,b,c,d)                      \
+#define G(m,i,a,b,c,d)                      \
   do {                                      \
-    a = a + b + m[sigma[2*i+0]]; \
+    a = a + b + m[2*i+0];                   \
     d = rotr32(d ^ a, 16);                  \
     c = c + d;                              \
     b = rotr32(b ^ c, 12);                  \
-    a = a + b + m[sigma[2*i+1]]; \
+    a = a + b + m[2*i+1];                   \
     d = rotr32(d ^ a, 8);                   \
     c = c + d;                              \
     b = rotr32(b ^ c, 7);                   \
   } while(0)
 
-#define ROUND(sigma)                    \
+#define ROUND(m)                    \
   do {                              \
-    G(sigma,0,v[ 0],v[ 4],v[ 8],v[12]); \
-    G(sigma,1,v[ 1],v[ 5],v[ 9],v[13]); \
-    G(sigma,2,v[ 2],v[ 6],v[10],v[14]); \
-    G(sigma,3,v[ 3],v[ 7],v[11],v[15]); \
-    G(sigma,4,v[ 0],v[ 5],v[10],v[15]); \
-    G(sigma,5,v[ 1],v[ 6],v[11],v[12]); \
-    G(sigma,6,v[ 2],v[ 7],v[ 8],v[13]); \
-    G(sigma,7,v[ 3],v[ 4],v[ 9],v[14]); \
+    G(m,0,v[ 0],v[ 4],v[ 8],v[12]); \
+    G(m,1,v[ 1],v[ 5],v[ 9],v[13]); \
+    G(m,2,v[ 2],v[ 6],v[10],v[14]); \
+    G(m,3,v[ 3],v[ 7],v[11],v[15]); \
+    G(m,4,v[ 0],v[ 5],v[10],v[15]); \
+    G(m,5,v[ 1],v[ 6],v[11],v[12]); \
+    G(m,6,v[ 2],v[ 7],v[ 8],v[13]); \
+    G(m,7,v[ 3],v[ 4],v[ 9],v[14]); \
   } while(0)
 
 static void Wifi_Rand_Core_Compress( Wifi_Rand_Core_State *S, const uint8_t in[WIFI_RAND_CORE_BLOCKBYTES] )
 {
-  uint32_t m[16];
+  uint32_t m_1[16], m_2[16];
   uint32_t v[16];
-  uint8_t sigma_1[16], sigma_2[16];
   size_t i, j;
 
-  memcpy( m, in, sizeof(m) );
+  memcpy( m_1, in, sizeof(m_1) );
 
   memcpy( v, S->h, sizeof(S->h) );
   memcpy( &v[8], Wifi_Rand_Core_Iv, sizeof(v[8]) * 4 );
@@ -167,24 +166,20 @@ static void Wifi_Rand_Core_Compress( Wifi_Rand_Core_State *S, const uint8_t in[W
   v[14] = S->f[0] ^ Wifi_Rand_Core_Iv[6];
   v[15] = S->f[1] ^ Wifi_Rand_Core_Iv[7];
 
-  for( i = 0; i < 16; ++i) {
-    sigma_1[i] = i;
-  }
-
   for( i = 0; ; ) {
-    ROUND( sigma_1 );
+    ROUND( m_1 );
 
     // 7 rounds; check here because the number is odd.
     if( i + 1 >= 7 ) break;
 
     for( j = 0; j < 16; ++j ) {
-      sigma_2[j] = sigma_1[Wifi_Rand_Core_Sigma[j]];
+      m_2[j] = m_1[Wifi_Rand_Core_Sigma[j]];
     }
 
-    ROUND( sigma_2 );
+    ROUND( m_2 );
 
     for( j = 0; j < 16; ++j ) {
-      sigma_1[j] = sigma_2[Wifi_Rand_Core_Sigma[j]];
+      m_1[j] = m_2[Wifi_Rand_Core_Sigma[j]];
     }
 
     i += 2;
