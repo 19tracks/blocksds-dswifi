@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
@@ -5,7 +6,7 @@
 #include "wifi_rand.h"
 #include "wifi_rand_impl.h"
 
-int Wifi_Rand_Init( Wifi_Rand_State *S ) {
+void Wifi_Rand_Init( Wifi_Rand_State *S ) {
   /* Initialize parameter block */
   S->P->digest_length = WIFI_RAND_CORE_OUTBYTES;
   S->P->key_length    = 0;
@@ -19,20 +20,14 @@ int Wifi_Rand_Init( Wifi_Rand_State *S ) {
   memset( S->P->salt,     0, sizeof( S->P->salt ) );
   memset( S->P->personal, 0, sizeof( S->P->personal ) );
 
-  if( Wifi_Rand_Core_InitParam( S->S, S->P ) < 0 ) {
-    return -1;
-  }
-
-  return 0;
+  Wifi_Rand_Core_InitParam( S->S, S->P );
 }
 
-int Wifi_Rand_Finish(Wifi_Rand_State *S, Wifi_Rand_FinishedState *F) {
+void Wifi_Rand_Finish(Wifi_Rand_State *S, Wifi_Rand_FinishedState *F) {
   /* Finalize the root hash */
   Wifi_Rand_Core_State C[1];
   memcpy(C, S->S, sizeof(C));
-  if (Wifi_Rand_Core_Final(C, F->root, WIFI_RAND_CORE_OUTBYTES) < 0) {
-    return -1;
-  }
+  Wifi_Rand_Core_Final(C, F->root, WIFI_RAND_CORE_OUTBYTES);
 
   /* Set common block structure values */
   /* Copy values from parent instance, and only change the ones below */
@@ -47,11 +42,9 @@ int Wifi_Rand_Finish(Wifi_Rand_State *S, Wifi_Rand_FinishedState *F) {
   P->inner_length = WIFI_RAND_CORE_OUTBYTES;
 
   F->buflen = 0;
-
-  return 0;
 }
 
-static int Wifi_Rand_FinishedReadBlock(Wifi_Rand_FinishedState *F, uint8_t out[WIFI_RAND_CORE_OUTBYTES]) {
+static void Wifi_Rand_FinishedReadBlock(Wifi_Rand_FinishedState *F, uint8_t out[WIFI_RAND_CORE_OUTBYTES]) {
   Wifi_Rand_Core_State C[1];
   Wifi_Rand_Core_Param *P = F->P;
 
@@ -62,21 +55,16 @@ static int Wifi_Rand_FinishedReadBlock(Wifi_Rand_FinishedState *F, uint8_t out[W
   Wifi_Rand_Core_InitParam(C, P);
   /* Process key if needed */
   Wifi_Rand_Core_Update(C, F->root, WIFI_RAND_CORE_OUTBYTES);
-  if (Wifi_Rand_Core_Final(C, out, WIFI_RAND_CORE_OUTBYTES) < 0) {
-    return -1;
-  }
+  Wifi_Rand_Core_Final(C, out, WIFI_RAND_CORE_OUTBYTES);
 
   store32(&P->node_offset, node_offset + 1);
-
-  return 0;
 }
 
-int Wifi_Rand_FinishedReadBytes(Wifi_Rand_FinishedState *F, void *outv, size_t outlen) {
+void Wifi_Rand_FinishedReadBytes(Wifi_Rand_FinishedState *F, void *outv, size_t outlen) {
   uint8_t *out = outv;
 
-  if (NULL == out || outlen == 0) {
-    return -1;
-  }
+  assert( out != NULL );
+  assert( outlen != 0 );
 
   // if outlen is a multiple of the output block size (which is
   // likely if using 256-bit cryptography, since the output block
@@ -89,7 +77,7 @@ int Wifi_Rand_FinishedReadBytes(Wifi_Rand_FinishedState *F, void *outv, size_t o
     if (outlen <= F->buflen) {
       memcpy(out, &F->buf[WIFI_RAND_CORE_OUTBYTES - F->buflen], outlen);
       F->buflen -= outlen;
-      return 0;
+      return;
     }
 
     memcpy(out, &F->buf[WIFI_RAND_CORE_OUTBYTES - F->buflen], F->buflen);
@@ -99,21 +87,14 @@ int Wifi_Rand_FinishedReadBytes(Wifi_Rand_FinishedState *F, void *outv, size_t o
   }
 
   while (outlen >= WIFI_RAND_CORE_OUTBYTES) {
-    if (Wifi_Rand_FinishedReadBlock(F, out) < 0) {
-      return -1;
-    }
+    Wifi_Rand_FinishedReadBlock(F, out);
     out += WIFI_RAND_CORE_OUTBYTES;
     outlen -= WIFI_RAND_CORE_OUTBYTES;
   }
 
   if (outlen > 0) {
-    if (Wifi_Rand_FinishedReadBlock(F, F->buf) < 0) {
-      return -1;
-    }
-
+    Wifi_Rand_FinishedReadBlock(F, F->buf);
     memcpy(out, F->buf, outlen);
     F->buflen = WIFI_RAND_CORE_OUTBYTES - outlen;
   }
-
-  return 0;
 }

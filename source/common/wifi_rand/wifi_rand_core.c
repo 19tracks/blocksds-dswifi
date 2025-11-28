@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
@@ -53,7 +54,7 @@ static void Wifi_Rand_Core_Init0( Wifi_Rand_Core_State *S )
 }
 
 /* init2 xors IV with input parameter block */
-int Wifi_Rand_Core_InitParam( Wifi_Rand_Core_State *S, const Wifi_Rand_Core_Param *P )
+void Wifi_Rand_Core_InitParam( Wifi_Rand_Core_State *S, const Wifi_Rand_Core_Param *P )
 {
   const unsigned char *p = ( const unsigned char * )( P );
   size_t i;
@@ -65,7 +66,6 @@ int Wifi_Rand_Core_InitParam( Wifi_Rand_Core_State *S, const Wifi_Rand_Core_Para
     S->h[i] ^= load32( &p[i * 4] );
 
   S->outlen = P->digest_length;
-  return 0;
 }
 
 #define G(m,i,a,b,c,d)                      \
@@ -134,7 +134,7 @@ static void Wifi_Rand_Core_Compress( Wifi_Rand_Core_State *S, const uint8_t in[W
 #undef G
 #undef ROUND
 
-int Wifi_Rand_Core_Update( Wifi_Rand_Core_State *S, const void *pin, size_t inlen )
+void Wifi_Rand_Core_Update( Wifi_Rand_Core_State *S, const void *pin, size_t inlen )
 {
   const unsigned char * in = (const unsigned char *)pin;
   if( inlen > 0 )
@@ -158,16 +158,13 @@ int Wifi_Rand_Core_Update( Wifi_Rand_Core_State *S, const void *pin, size_t inle
     memcpy( S->buf + S->buflen, in, inlen );
     S->buflen += inlen;
   }
-  return 0;
 }
 
-int Wifi_Rand_Core_Final( Wifi_Rand_Core_State *S, void *out, size_t outlen )
+void Wifi_Rand_Core_Final( Wifi_Rand_Core_State *S, void *out, size_t outlen )
 {
-  if( out == NULL || outlen < S->outlen )
-    return -1;
-
-  if( Wifi_Rand_Core_IsLastblock( S ) )
-    return -1;
+  assert( out != NULL);
+  assert( outlen >= S->outlen );
+  assert( !Wifi_Rand_Core_IsLastblock( S ) );
 
   Wifi_Rand_Core_IncrementCounter( S, ( uint32_t )S->buflen );
   Wifi_Rand_Core_SetLastblock( S );
@@ -175,5 +172,4 @@ int Wifi_Rand_Core_Final( Wifi_Rand_Core_State *S, void *out, size_t outlen )
   Wifi_Rand_Core_Compress( S, S->buf );
 
   memcpy( out, S->h, outlen );
-  return 0;
 }
