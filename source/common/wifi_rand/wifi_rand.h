@@ -1,18 +1,8 @@
-#ifndef WIFI_RAND_H
-#define WIFI_RAND_H
+#ifndef DSWIFI_COMMON_WIFI_RAND_WIFI_RAND_H__
+#define DSWIFI_COMMON_WIFI_RAND_WIFI_RAND_H__
 
 #include <stddef.h>
 #include <stdint.h>
-
-#if defined(_MSC_VER)
-#define WIFI_RAND_PACKED(x) __pragma(pack(push, 1)) x __pragma(pack(pop))
-#else
-#define WIFI_RAND_PACKED(x) x __attribute__((packed))
-#endif
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
   enum Wifi_Rand_Core_Constant
   {
@@ -34,8 +24,7 @@ extern "C" {
     uint8_t  last_node;
   } Wifi_Rand_Core_State;
 
-
-  WIFI_RAND_PACKED(struct Wifi_Rand_Core_Param__
+  typedef struct __attribute__((packed)) Wifi_Rand_Core_Param__
   {
     uint8_t  digest_length; /* 1 */
     uint8_t  key_length;    /* 2 */
@@ -49,9 +38,7 @@ extern "C" {
     /* uint8_t  reserved[0]; */
     uint8_t  salt[WIFI_RAND_CORE_SALTBYTES]; /* 24 */
     uint8_t  personal[WIFI_RAND_CORE_PERSONALBYTES];  /* 32 */
-  });
-
-  typedef struct Wifi_Rand_Core_Param__ Wifi_Rand_Core_Param;
+  } Wifi_Rand_Core_Param;
 
   typedef struct Wifi_Rand_State__
   {
@@ -90,9 +77,5 @@ extern "C" {
   int Wifi_Rand_Update( Wifi_Rand_State *S, const void *in, size_t inlen );
   int Wifi_Rand_Finish( Wifi_Rand_State *S, Wifi_Rand_FinishedState *F );
   int Wifi_Rand_FinishedReadBytes( Wifi_Rand_FinishedState *F, void *out, size_t outlen );
-
-#if defined(__cplusplus)
-}
-#endif
 
 #endif

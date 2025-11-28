@@ -152,18 +152,10 @@ static void Wifi_Rand_Core_Compress( Wifi_Rand_Core_State *S, const uint8_t in[W
   uint8_t sigma_1[16], sigma_2[16];
   size_t i, j;
 
-  for( i = 0; i < 16; ++i ) {
-    m[i] = load32( in + i * sizeof( m[i] ) );
-  }
+  memcpy( m, in, sizeof(m) );
 
-  for( i = 0; i < 8; ++i ) {
-    v[i] = S->h[i];
-  }
-
-  v[ 8] = Wifi_Rand_Core_Iv[0];
-  v[ 9] = Wifi_Rand_Core_Iv[1];
-  v[10] = Wifi_Rand_Core_Iv[2];
-  v[11] = Wifi_Rand_Core_Iv[3];
+  memcpy( v, S->h, sizeof(S->h) );
+  memcpy( &v[8], Wifi_Rand_Core_Iv, sizeof(v[8]) * 4 );
   v[12] = S->t[0] ^ Wifi_Rand_Core_Iv[4];
   v[13] = S->t[1] ^ Wifi_Rand_Core_Iv[5];
   v[14] = S->f[0] ^ Wifi_Rand_Core_Iv[6];
@@ -229,9 +221,6 @@ int Wifi_Rand_Core_Update( Wifi_Rand_Core_State *S, const void *pin, size_t inle
 
 int Wifi_Rand_Core_Final( Wifi_Rand_Core_State *S, void *out, size_t outlen )
 {
-  uint8_t buffer[WIFI_RAND_CORE_OUTBYTES] = {0};
-  size_t i;
-
   if( out == NULL || outlen < S->outlen )
     return -1;
 
@@ -243,85 +232,6 @@ int Wifi_Rand_Core_Final( Wifi_Rand_Core_State *S, void *out, size_t outlen )
   memset( S->buf + S->buflen, 0, WIFI_RAND_CORE_BLOCKBYTES - S->buflen ); /* Padding */
   Wifi_Rand_Core_Compress( S, S->buf );
 
-  for( i = 0; i < 8; ++i ) /* Output full hash to temp buffer */
-    store32( buffer + sizeof( S->h[i] ) * i, S->h[i] );
-
-  memcpy( out, buffer, outlen );
-  secure_zero_memory(buffer, sizeof(buffer));
+  memcpy( out, S->h, outlen );
   return 0;
 }
-
-#if defined(SUPERCOP)
-int crypto_hash( unsigned char *out, unsigned char *in, unsigned long long inlen )
-{
-  return wifi_rand_core( out, WIFI_RAND_CORE_OUTBYTES, in, inlen, NULL, 0 );
-}
-#endif
-
-#if defined(WIFI_RAND_CORE_SELFTEST)
-#include <string.h>
-#include "wifi_rand-kat.h"
-int main( void )
-{
-  uint8_t key[WIFI_RAND_CORE_KEYBYTES];
-  uint8_t buf[WIFI_RAND_KAT_LENGTH];
-  size_t i, step;
-
-  for( i = 0; i < WIFI_RAND_CORE_KEYBYTES; ++i )
-    key[i] = ( uint8_t )i;
-
-  for( i = 0; i < WIFI_RAND_KAT_LENGTH; ++i )
-    buf[i] = ( uint8_t )i;
-
-  /* Test simple API */
-  for( i = 0; i < WIFI_RAND_KAT_LENGTH; ++i )
-  {
-    uint8_t hash[WIFI_RAND_CORE_OUTBYTES];
-    wifi_rand_core( hash, WIFI_RAND_CORE_OUTBYTES, buf, i, key, WIFI_RAND_CORE_KEYBYTES );
-
-    if( 0 != memcmp( hash, wifi_rand_core_keyed_kat[i], WIFI_RAND_CORE_OUTBYTES ) )
-    {
-      goto fail;
-    }
-  }
-
-  /* Test streaming API */
-  for(step = 1; step < WIFI_RAND_CORE_BLOCKBYTES; ++step) {
-    for (i = 0; i < WIFI_RAND_KAT_LENGTH; ++i) {
-      uint8_t hash[WIFI_RAND_CORE_OUTBYTES];
-      Wifi_Rand_Core_State S;
-      uint8_t * p = buf;
-      size_t mlen = i;
-      int err = 0;
-
-      if( (err = Wifi_Rand_Core_InitKey(&S, WIFI_RAND_CORE_OUTBYTES, key, WIFI_RAND_CORE_KEYBYTES)) < 0 ) {
-        goto fail;
-      }
-
-      while (mlen >= step) {
-        if ( (err = Wifi_Rand_Core_Update(&S, p, step)) < 0 ) {
-          goto fail;
-        }
-        mlen -= step;
-        p += step;
-      }
-      if ( (err = Wifi_Rand_Core_Update(&S, p, mlen)) < 0) {
-        goto fail;
-      }
-      if ( (err = Wifi_Rand_Core_Final(&S, hash, WIFI_RAND_CORE_OUTBYTES)) < 0) {
-        goto fail;
-      }
-
-      if (0 != memcmp(hash, wifi_rand_core_keyed_kat[i], WIFI_RAND_CORE_OUTBYTES)) {
-        goto fail;
-      }
-    }
-  }
-
-  puts( "ok" );
-  return 0;
-fail:
-  puts("error");
-  return -1;
-}
-#endif
