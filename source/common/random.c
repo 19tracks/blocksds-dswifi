@@ -50,7 +50,8 @@ uint32_t Wifi_Random(void)
     Wifi_Rand_FinishedState *rngHasher = (Wifi_Rand_FinishedState*)&WifiData->rngHasher9;
 #endif
 
-    if(*dirty) {
+    if (*dirty)
+    {
         Wifi_Rand_State entropyHasher;
 
         int oldIME = enterCriticalSection();
@@ -58,7 +59,8 @@ uint32_t Wifi_Random(void)
         while (Spinlock_Acquire(WifiData->entropyHasher) != SPINLOCK_OK);
 #endif
         asm volatile ("" : : : "memory");
-        if(*dirty) {
+        if (*dirty)
+        {
             memcpy(
                 &entropyHasher,
                 (void*)&WifiData->entropyHasher.state,
@@ -72,7 +74,8 @@ uint32_t Wifi_Random(void)
             *dirty = false;
         }
 #ifdef ARM9
-        else {
+        else
+        {
             Spinlock_Release(WifiData->entropyHasher);
         }
 #endif
