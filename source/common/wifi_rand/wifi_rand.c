@@ -102,15 +102,25 @@ int Wifi_Rand_FinishedReadBytes(Wifi_Rand_FinishedState *F, void *outv, size_t o
     return -1;
   }
 
-  if (outlen <= F->buflen) {
-    memcpy(out, &F->buf[WIFI_RAND_CORE_OUTBYTES - F->buflen], outlen);
-    F->buflen -= outlen;
-    return 0;
-  }
+  // if outlen is a multiple of the output block size (which is
+  // likely if using 256-bit cryptography, since the output block
+  // size is 256 bits), avoid touching whatever's in the buffer
+  // and just push bytes directly. the stream is supposed to be
+  // unpredictable and irreproducible, so it doesn't matter that
+  // this can result in us producing bytes out of order; all that
+  // matters is that they're never reused.
+  if (outlen % WIFI_RAND_CORE_OUTBYTES > 0) {
+    if (outlen <= F->buflen) {
+      memcpy(out, &F->buf[WIFI_RAND_CORE_OUTBYTES - F->buflen], outlen);
+      F->buflen -= outlen;
+      return 0;
+    }
 
-  memcpy(out, &F->buf[WIFI_RAND_CORE_OUTBYTES - F->buflen], F->buflen);
-  out += F->buflen;
-  outlen -= F->buflen;
+    memcpy(out, &F->buf[WIFI_RAND_CORE_OUTBYTES - F->buflen], F->buflen);
+    out += F->buflen;
+    outlen -= F->buflen;
+    F->buflen = 0;
+  }
 
   while (outlen >= WIFI_RAND_CORE_OUTBYTES) {
     if (Wifi_Rand_FinishedReadBlock(F, out) < 0) {
@@ -120,12 +130,14 @@ int Wifi_Rand_FinishedReadBytes(Wifi_Rand_FinishedState *F, void *outv, size_t o
     outlen -= WIFI_RAND_CORE_OUTBYTES;
   }
 
-  if (Wifi_Rand_FinishedReadBlock(F, F->buf) < 0) {
-    return -1;
-  }
+  if (outlen > 0) {
+    if (Wifi_Rand_FinishedReadBlock(F, F->buf) < 0) {
+      return -1;
+    }
 
-  memcpy(out, F->buf, outlen);
-  F->buflen = WIFI_RAND_CORE_OUTBYTES - outlen;
+    memcpy(out, F->buf, outlen);
+    F->buflen = WIFI_RAND_CORE_OUTBYTES - outlen;
+  }
 
   return 0;
 }
