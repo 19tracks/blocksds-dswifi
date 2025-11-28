@@ -24,14 +24,14 @@
     uint8_t  last_node;
   } Wifi_Rand_Core_State;
 
-  typedef struct __attribute__((packed)) Wifi_Rand_Core_Param__
+  typedef struct Wifi_Rand_Core_Param__
   {
     uint8_t  digest_length; /* 1 */
     uint8_t  key_length;    /* 2 */
     uint8_t  fanout;        /* 3 */
     uint8_t  depth;         /* 4 */
     uint32_t leaf_length;   /* 8 */
-    uint32_t node_offset;  /* 12 */
+    uint32_t node_offset;   /* 12 */
     uint16_t xof_length;    /* 14 */
     uint8_t  node_depth;    /* 15 */
     uint8_t  inner_length;  /* 16 */

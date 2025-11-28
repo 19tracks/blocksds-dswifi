@@ -4,7 +4,6 @@
 #include <stdio.h>
 
 #include "wifi_rand.h"
-#include "wifi_rand_impl.h"
 
 #ifdef ARM9
 #define CACHE_ALIGNED __attribute__ ((aligned (32)))
@@ -58,14 +57,22 @@ void Wifi_Rand_Core_InitParam( Wifi_Rand_Core_State *S, const Wifi_Rand_Core_Par
 {
   const unsigned char *p = ( const unsigned char * )( P );
   size_t i;
+  uint32_t p_word;
 
   Wifi_Rand_Core_Init0( S );
 
   /* IV XOR ParamBlock */
-  for( i = 0; i < 8; ++i )
-    S->h[i] ^= load32( &p[i * 4] );
+  for( i = 0; i < 8; ++i ) {
+    memcpy( &p_word, &p[i * 4], sizeof(p_word) );
+    S->h[i] ^= p_word;
+  }
 
   S->outlen = P->digest_length;
+}
+
+static inline uint32_t rotr32( const uint32_t w, const unsigned c )
+{
+  return ( w >> c ) | ( w << ( 32 - c ) );
 }
 
 #define G(m,i,a,b,c,d)                      \

@@ -4,7 +4,6 @@
 #include <stdio.h>
 
 #include "wifi_rand.h"
-#include "wifi_rand_impl.h"
 
 static const char Wifi_Rand_Personal[WIFI_RAND_CORE_PERSONALBYTES] __attribute__ ((nonstring)) = "BlkDSWRn";
 
@@ -14,9 +13,9 @@ void Wifi_Rand_Init( Wifi_Rand_State *S ) {
   S->P->key_length    = 0;
   S->P->fanout        = 1;
   S->P->depth         = 1;
-  store32( &S->P->leaf_length, 0 );
-  store32( &S->P->node_offset, 0 );
-  store16( &S->P->xof_length, 0xFFFFUL );
+  S->P->leaf_length   = 0;
+  S->P->node_offset   = 0;
+  S->P->xof_length    = 0xFFFFUL;
   S->P->node_depth    = 0;
   S->P->inner_length  = 0;
   memset( S->P->salt,     0, sizeof( S->P->salt ) );
@@ -38,7 +37,7 @@ void Wifi_Rand_Finish(Wifi_Rand_State *S, Wifi_Rand_FinishedState *F) {
   P->key_length = 0;
   P->fanout = 0;
   P->depth = 0;
-  store32(&P->leaf_length, WIFI_RAND_CORE_OUTBYTES);
+  P->leaf_length = WIFI_RAND_CORE_OUTBYTES;
   P->node_offset = 0;
   P->node_depth = 0;
   P->inner_length = WIFI_RAND_CORE_OUTBYTES;
@@ -50,8 +49,6 @@ static void Wifi_Rand_FinishedReadBlock(Wifi_Rand_FinishedState *F, uint8_t out[
   Wifi_Rand_Core_State C[1];
   Wifi_Rand_Core_Param *P = F->P;
 
-  const uint32_t node_offset = load32(&P->node_offset);
-
   /* Initialize state */
   P->digest_length = WIFI_RAND_CORE_OUTBYTES;
   Wifi_Rand_Core_InitParam(C, P);
@@ -59,7 +56,7 @@ static void Wifi_Rand_FinishedReadBlock(Wifi_Rand_FinishedState *F, uint8_t out[
   Wifi_Rand_Core_Update(C, F->root, WIFI_RAND_CORE_OUTBYTES);
   Wifi_Rand_Core_Final(C, out, WIFI_RAND_CORE_OUTBYTES);
 
-  store32(&P->node_offset, node_offset + 1);
+  P->node_offset++;
 }
 
 void Wifi_Rand_FinishedReadBytes(Wifi_Rand_FinishedState *F, void *outv, size_t outlen) {
