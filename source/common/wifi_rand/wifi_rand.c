@@ -129,40 +129,6 @@ int wifi_rand_finished_read_bytes(wifi_rand_finished_state *F, void *outv, size_
   return 0;
 }
 
-#if 0
-int wifi_rand(void *out, size_t outlen, const void *in, size_t inlen, const void *key, size_t keylen)
-{
-  wifi_rand_state S[1];
-
-  /* Verify parameters */
-  if (NULL == in && inlen > 0)
-    return -1;
-
-  if (NULL == out)
-    return -1;
-
-  if (NULL == key && keylen > 0)
-    return -1;
-
-  if (keylen > WIFI_RAND_CORE_KEYBYTES)
-    return -1;
-
-  if (outlen == 0)
-    return -1;
-
-  /* Initialize the root block structure */
-  if (wifi_rand_init_key(S, outlen, key, keylen) < 0) {
-    return -1;
-  }
-
-  /* Absorb the input message */
-  wifi_rand_update(S, in, inlen);
-
-  /* Compute the root node of the tree and the final hash using the counter construction */
-  return wifi_rand_final(S, out, outlen);
-}
-#endif
-
 #if defined(WIFI_RAND_SELFTEST)
 #include <string.h>
 #include "wifi_rand-kat.h"

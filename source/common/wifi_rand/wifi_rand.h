@@ -91,11 +91,6 @@ extern "C" {
   int wifi_rand_finish( wifi_rand_state *S, wifi_rand_finished_state *F );
   int wifi_rand_finished_read_bytes( wifi_rand_finished_state *F, void *out, size_t outlen );
 
-  /* Simple API */
-  int wifi_rand_core( void *out, size_t outlen, const void *in, size_t inlen, const void *key, size_t keylen );
-
-  int wifi_rand( void *out, size_t outlen, const void *in, size_t inlen, const void *key, size_t keylen );
-
 #if defined(__cplusplus)
 }
 #endif

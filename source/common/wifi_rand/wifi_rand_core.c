@@ -247,35 +247,6 @@ int wifi_rand_core_final( wifi_rand_core_state *S, void *out, size_t outlen )
   return 0;
 }
 
-int wifi_rand_core( void *out, size_t outlen, const void *in, size_t inlen, const void *key, size_t keylen )
-{
-  wifi_rand_core_state S[1];
-
-  /* Verify parameters */
-  if ( NULL == in && inlen > 0 ) return -1;
-
-  if ( NULL == out ) return -1;
-
-  if ( NULL == key && keylen > 0) return -1;
-
-  if( !outlen || outlen > WIFI_RAND_CORE_OUTBYTES ) return -1;
-
-  if( keylen > WIFI_RAND_CORE_KEYBYTES ) return -1;
-
-  if( keylen > 0 )
-  {
-    if( wifi_rand_core_init_key( S, outlen, key, keylen ) < 0 ) return -1;
-  }
-  else
-  {
-    if( wifi_rand_core_init( S, outlen ) < 0 ) return -1;
-  }
-
-  wifi_rand_core_update( S, ( const uint8_t * )in, inlen );
-  wifi_rand_core_final( S, out, outlen );
-  return 0;
-}
-
 #if defined(SUPERCOP)
 int crypto_hash( unsigned char *out, unsigned char *in, unsigned long long inlen )
 {
