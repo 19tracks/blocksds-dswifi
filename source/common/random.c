@@ -19,13 +19,15 @@
 #ifdef ARM7
 void Wifi_RandomAddEntropy(uint32_t value)
 {
+    // As mentioned in the comment in random.h, we occasionally stay in this
+    // critical section for almost 0.2 milliseconds, which is unfortunate.
     int oldIME = enterCriticalSection();
     while (Spinlock_Acquire(WifiData->entropyHasher) != SPINLOCK_OK);
 
     asm volatile ("" : : : "memory");
 
     Wifi_Rand_Update(
-        // okay to discard `volatile` with memory barriers in place
+        // It's okay to discard `volatile` with memory barriers in place.
         (Wifi_Rand_State*)&WifiData->entropyHasher.state,
         &value,
         sizeof(value)
@@ -56,6 +58,9 @@ uint32_t Wifi_Random(void)
     {
         Wifi_Rand_State entropyHasher;
 
+        // Since it can take almost 0.2 milliseconds for the ARM7 to release
+        // this lock, the ARM9 may also end up spending that long in this
+        // critical section waiting to acquire it.
         int oldIME = enterCriticalSection();
 #ifdef ARM9
         while (Spinlock_Acquire(WifiData->entropyHasher) != SPINLOCK_OK);

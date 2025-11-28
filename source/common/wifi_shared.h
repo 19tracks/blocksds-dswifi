@@ -157,11 +157,19 @@ typedef struct {
     u8 pmk[32];  // For WPA and WPA2
 } Wifi_ApSecurity;
 
-// FIXME: comment, and also should we really be putting wifi_rand symbols in the
-// wi-fi headers and .a? can we reasonably avoid it?
+// A hasher that takes in an unlimited stream of bytes and digests them into
+// a fixed-size state which should (hopefully) be suitable for a security level
+// of up to 128 bits, depending on how much high-quality entropy it's been fed
 typedef struct {
+    // The state of the hasher itself
     Wifi_Rand_State state;
+
+    // The ARM7 and ARM9 have separate random number generators, which are
+    // seeded from the state we keep here. When bytes are fed into the state,
+    // we set both of these flags, and each CPU sees it, clears it, and reseeds
+    // its RNG the next time it tries to generate random numbers.
     bool dirty7, dirty9;
+
     // As above, the ARM9 doesn't write to this, so the ARM7 is free to read
     // from it with no lock as long as interrupts are disabled.
     u32 spinlock;
@@ -274,15 +282,14 @@ typedef struct WIFI_MAINSTRUCT
     // Stats data
     u32 stats[NUM_WIFI_STATS];
 
-    // Semirandom number updated at the convenience of the ARM7. Used for
-    // initial seeds and such. Don't count on it being updated every frame.
-    // FIXME: comment
+    // A pool of entropy into which bytes that might be difficult for an
+    // attacker to predict are occasionally stirred by the ARM7 with the goal of
+    // generating numbers as unpredictable as we can manage, for cryptographic
+    // purposes
     Wifi_EntropyHasher entropyHasher;
 
-    // The following two values are normally used by each CPU when they
-    // generate random numbers. They are seeded from hardware_rng_seed by the
-    // ARM7. They must never be set to zero.
-    // FIXME: comment
+    // Separate random number generators for the ARM7 and ARM9, continuously
+    // seeded from entropyHasher
     Wifi_Rand_FinishedState rngHasher7, rngHasher9;
 
     // End
