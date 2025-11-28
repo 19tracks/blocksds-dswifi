@@ -5,13 +5,19 @@
 #include "wifi_rand.h"
 #include "wifi_rand_impl.h"
 
-static const uint32_t Wifi_Rand_Core_Iv[8] =
+#ifdef ARM9
+#define CACHE_ALIGNED __attribute__ ((aligned (32)))
+#else
+#define CACHE_ALIGNED
+#endif
+
+static const uint32_t Wifi_Rand_Core_Iv[8] CACHE_ALIGNED =
 {
   0x6A09E667UL, 0xBB67AE85UL, 0x3C6EF372UL, 0xA54FF53AUL,
   0x510E527FUL, 0x9B05688CUL, 0x1F83D9ABUL, 0x5BE0CD19UL
 };
 
-static const uint8_t Wifi_Rand_Core_Sigma[16] =
+static const uint8_t Wifi_Rand_Core_Sigma[16] CACHE_ALIGNED =
 {
   2, 6, 3, 10, 7, 0, 4, 13, 1, 11, 12, 5, 9, 14, 15, 8
 };
