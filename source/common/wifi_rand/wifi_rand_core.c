@@ -159,7 +159,6 @@ void Wifi_Rand_Core_Update( Wifi_Rand_State *S, const void *pin, size_t inlen )
 void Wifi_Rand_Core_Final( Wifi_Rand_State *S, void *out, size_t outlen )
 {
   assert( out != NULL);
-  assert( outlen >= S->outlen );
   assert( !Wifi_Rand_Core_IsLastblock( S ) );
 
   Wifi_Rand_Core_IncrementCounter( S, ( uint32_t )S->buflen );

@@ -17,7 +17,6 @@
     uint32_t f[2];
     uint8_t  buf[WIFI_RAND_BLOCKBYTES];
     size_t   buflen;
-    size_t   outlen;
     uint8_t  last_node;
   } Wifi_Rand_State;
 
