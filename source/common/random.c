@@ -17,7 +17,7 @@
 #endif
 
 #ifdef ARM7
-void Wifi_RandomAddEntropy(uint32_t value)
+void Wifi_RandomAddEntropyBytes(const void *in, size_t inlen)
 {
     // As mentioned in the comment in random.h, we occasionally stay in this
     // critical section for almost 0.2 milliseconds, which is unfortunate.
@@ -28,7 +28,7 @@ void Wifi_RandomAddEntropy(uint32_t value)
 
     // It's okay to discard `volatile` with memory barriers in place.
     Wifi_Rand_State *state = (Wifi_Rand_State*)&WifiData->entropyHasher.state;
-    bool compressTriggered = Wifi_Rand_WillUpdateTriggerCompress(state, sizeof(value));
+    bool compressTriggered = Wifi_Rand_WillUpdateTriggerCompress(state, inlen);
 
     Wifi_Rand_State tempState;
     Wifi_Rand_State *workingState = state;
@@ -46,7 +46,7 @@ void Wifi_RandomAddEntropy(uint32_t value)
         Spinlock_Release(WifiData->entropyHasher);
     }
 
-    Wifi_Rand_Update(workingState, &value, sizeof(value));
+    Wifi_Rand_Update(workingState, in, inlen);
 
     if (compressTriggered)
     {
@@ -60,10 +60,17 @@ void Wifi_RandomAddEntropy(uint32_t value)
     Spinlock_Release(WifiData->entropyHasher);
     leaveCriticalSection(oldIME);
 }
+
+void Wifi_RandomAddEntropy(uint32_t value)
+{
+    Wifi_RandomAddEntropyBytes(&value, sizeof(value));
+}
 #endif
 
-uint32_t Wifi_Random(void)
+void Wifi_RandomBytes(void *out, size_t outlen)
 {
+    // [ ] critical section   [ ] spinlock
+
 #ifdef ARM7
     char cpuDistinctValue = '7';
     Wifi_Rand_FinishedState *rngHasher = (Wifi_Rand_FinishedState*)&WifiData->rngHasher7;
@@ -127,28 +134,31 @@ uint32_t Wifi_Random(void)
 
     // [x] critical section   [ ] spinlock
 
-    uint32_t x;
-
-    if (Wifi_Rand_WillFinishedReadTriggerCompress(rngHasher, sizeof(x)))
+    if (Wifi_Rand_WillFinishedReadTriggerCompress(rngHasher, outlen))
     {
         Wifi_Rand_FinishedState reservation;
-        Wifi_Rand_FinishedReserveBytes(rngHasher, &reservation, sizeof(x));
+        Wifi_Rand_FinishedReserveBytes(rngHasher, &reservation, outlen);
 
         leaveCriticalSection(oldIME);
         // [ ] critical section   [ ] spinlock
 
-        Wifi_Rand_FinishedReadBytes(&reservation, &x, sizeof(x));
+        Wifi_Rand_FinishedReadBytes(&reservation, out, outlen);
 
         oldIME = enterCriticalSection();
         // [x] critical section   [ ] spinlock
 
         Wifi_Rand_FinishedEndReservation(rngHasher, &reservation);
     } else {
-        Wifi_Rand_FinishedReadBytes(rngHasher, &x, sizeof(x));
+        Wifi_Rand_FinishedReadBytes(rngHasher, out, outlen);
     }
 
     leaveCriticalSection(oldIME);
     // [ ] critical section   [ ] spinlock
+}
 
+uint32_t Wifi_Random(void)
+{
+    uint32_t x;
+    Wifi_RandomBytes(&x, sizeof(x));
     return x;
 }
