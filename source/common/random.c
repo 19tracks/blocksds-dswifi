@@ -86,13 +86,16 @@ uint32_t Wifi_Random(void)
         while (Spinlock_Acquire(WifiData->entropyHasher) != SPINLOCK_OK);
 #endif
         asm volatile ("" : : : "memory");
+        // [x] critical section   [x] spinlock
 
         uint32_t previousFinishedInputCounter = *finishedInputCounter;
 
         // This function might have been called again in an interrupt between
         // the earlier check and here, so don't do unnecessary work in that case
-        if (*finishedInputCounter < *totalInputBytes)
+        if (previousFinishedInputCounter < *totalInputBytes)
         {
+            // [x] critical section   [x] spinlock
+
             memcpy(
                 &entropyHasher,
                 (void*)&WifiData->entropyHasher.state,
@@ -103,12 +106,15 @@ uint32_t Wifi_Random(void)
             Spinlock_Release(WifiData->entropyHasher);
 #endif
             leaveCriticalSection(oldIME);
+            // [ ] critical section   [ ] spinlock
 
             Wifi_Rand_Update(&entropyHasher, &cpuDistinctValue, sizeof(cpuDistinctValue));
             Wifi_Rand_Finish(&entropyHasher, &rngHasherTemp);
 
             oldIME = enterCriticalSection();
             asm volatile ("" : : : "memory");
+            // [x] critical section   [ ] spinlock
+
             // If these don't match, we were interrupted, and rngHasher has
             // already been updated with data at least as fresh as ours.
             if(*finishedInputCounter == previousFinishedInputCounter)
@@ -119,10 +125,14 @@ uint32_t Wifi_Random(void)
 #ifdef ARM9
         else
         {
+            // [x] critical section   [x] spinlock
             Spinlock_Release(WifiData->entropyHasher);
+            // [x] critical section   [ ] spinlock
         }
 #endif
+        // [x] critical section   [ ] spinlock
         leaveCriticalSection(oldIME);
+        // [ ] critical section   [ ] spinlock
     }
 
     uint32_t x;
