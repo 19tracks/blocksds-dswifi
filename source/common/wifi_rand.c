@@ -331,14 +331,9 @@ void Wifi_Rand_FinishedEndReservation(Wifi_Rand_FinishedState *finished, Wifi_Ra
 
     size_t combinedBuflen = finished->buflen + addedSize;
 
-    memmove(
-        &finished->buf[WIFI_RAND_OUTBYTES - combinedBuflen],
-        &finished->buf[WIFI_RAND_OUTBYTES - finished->buflen],
-        finished->buflen
-    );
     memcpy(
-        &finished->buf[WIFI_RAND_OUTBYTES - addedSize],
-        &reservation->buf[WIFI_RAND_OUTBYTES - reservation->buflen],
+        &finished->buf[WIFI_RAND_OUTBYTES - combinedBuflen],
+        &reservation->buf[WIFI_RAND_OUTBYTES - addedSize],
         addedSize
     );
     finished->buflen = combinedBuflen;
