@@ -67,14 +67,14 @@ uint32_t Wifi_Random(void)
 #ifdef ARM7
     char cpuDistinctValue = '7';
     Wifi_Rand_FinishedState *rngHasher = (Wifi_Rand_FinishedState*)&WifiData->rngHasher7;
-    volatile uint32_t *finishedInputCounter = &WifiData->rngHasher7.input_counter;
+    volatile uint32_t *finishedInputCounter = &WifiData->rngHasher7.inputCounter;
 #else
     char cpuDistinctValue = '9';
     Wifi_Rand_FinishedState *rngHasher = (Wifi_Rand_FinishedState*)&WifiData->rngHasher9;
-    volatile uint32_t *finishedInputCounter = &WifiData->rngHasher9.input_counter;
+    volatile uint32_t *finishedInputCounter = &WifiData->rngHasher9.inputCounter;
 #endif
 
-    volatile uint32_t *totalInputBytes = &WifiData->entropyHasher.state.input_counter;
+    volatile uint32_t *totalInputBytes = &WifiData->entropyHasher.state.inputCounter;
 
     if (*finishedInputCounter < *totalInputBytes)
     {

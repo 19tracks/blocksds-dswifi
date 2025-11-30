@@ -49,7 +49,7 @@ static int Wifi_Rand_IsLastblock(const Wifi_Rand_State *S)
 
 static void Wifi_Rand_SetLastblock(Wifi_Rand_State *S)
 {
-    if (S->last_node) Wifi_Rand_SetLastnode(S);
+    if (S->lastNode) Wifi_Rand_SetLastnode(S);
 
     S->f[0] = (uint32_t)-1;
 }
@@ -64,7 +64,7 @@ static void Wifi_Rand_Init0(Wifi_Rand_State *S)
 {
     memset(S, 0, sizeof(Wifi_Rand_State));
     memcpy(S->h, Wifi_Rand_Iv, sizeof(Wifi_Rand_Iv));
-    S->input_counter = 1;
+    S->inputCounter = 1;
 }
 
 static void Wifi_Rand_InitCounter(Wifi_Rand_State *S, const uint32_t counter)
@@ -195,9 +195,9 @@ bool Wifi_Rand_WillUpdateTriggerCompress(Wifi_Rand_State *S, size_t inlen) {
 
 void Wifi_Rand_Update(Wifi_Rand_State *S, const void *pin, size_t inlen)
 {
-    const unsigned char * in = (const unsigned char *)pin;
+    const unsigned char *in = (const unsigned char *)pin;
 
-    S->input_counter += inlen;
+    S->inputCounter += inlen;
 
     size_t left = S->buflen;
     size_t fill = WIFI_RAND_BLOCKBYTES - left;
@@ -230,25 +230,25 @@ void Wifi_Rand_Update(Wifi_Rand_State *S, const void *pin, size_t inlen)
 void Wifi_Rand_Finish(Wifi_Rand_State *S, Wifi_Rand_FinishedState *F)
 {
     // Finalize the root hash
-    Wifi_Rand_State C[1];
-    memcpy(C, S, sizeof(C));
-    Wifi_Rand_InnerFinish(C, F->root, WIFI_RAND_OUTBYTES);
+    Wifi_Rand_State rootHasher;
+    memcpy(&rootHasher, S, sizeof(rootHasher));
+    Wifi_Rand_InnerFinish(&rootHasher, F->root, WIFI_RAND_OUTBYTES);
     F->buflen = 0;
     F->counter = 0;
-    F->input_counter = S->input_counter;
+    F->inputCounter = S->inputCounter;
 }
 
 static void Wifi_Rand_FinishedReadBlock(Wifi_Rand_FinishedState *F, uint8_t out[WIFI_RAND_OUTBYTES])
 {
-    Wifi_Rand_State C[1];
+    Wifi_Rand_State xofHasher;
 
     // Pre-increment so we never use 0, as that's the counter we
     // use pre-finalization
     // DEVIATION FROM BLAKE2Xs: BLAKE2Xs starts the counter at 0;
     // we start it at 1.
-    Wifi_Rand_InitCounter(C, ++F->counter);
-    Wifi_Rand_Update(C, F->root, WIFI_RAND_OUTBYTES);
-    Wifi_Rand_InnerFinish(C, out, WIFI_RAND_OUTBYTES);
+    Wifi_Rand_InitCounter(&xofHasher, ++F->counter);
+    Wifi_Rand_Update(&xofHasher, F->root, WIFI_RAND_OUTBYTES);
+    Wifi_Rand_InnerFinish(&xofHasher, out, WIFI_RAND_OUTBYTES);
 }
 
 void Wifi_Rand_FinishedReadBytes(Wifi_Rand_FinishedState *F, void *outv, size_t outlen)
