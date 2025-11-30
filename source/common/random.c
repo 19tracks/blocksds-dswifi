@@ -76,12 +76,14 @@ uint32_t Wifi_Random(void)
 
     volatile uint32_t *totalInputBytes = &WifiData->entropyHasher.state.inputCounter;
 
+    int oldIME = enterCriticalSection();
+    // [x] critical section   [ ] spinlock
+
     if (*finishedInputCounter < *totalInputBytes)
     {
         Wifi_Rand_State entropyHasher;
         Wifi_Rand_FinishedState rngHasherTemp;
 
-        int oldIME = enterCriticalSection();
 #ifdef ARM9
         while (Spinlock_Acquire(WifiData->entropyHasher) != SPINLOCK_OK);
 #endif
@@ -90,53 +92,63 @@ uint32_t Wifi_Random(void)
 
         uint32_t previousFinishedInputCounter = *finishedInputCounter;
 
-        // This function might have been called again in an interrupt between
-        // the earlier check and here, so don't do unnecessary work in that case
-        if (previousFinishedInputCounter < *totalInputBytes)
-        {
-            // [x] critical section   [x] spinlock
-
-            memcpy(
-                &entropyHasher,
-                (void*)&WifiData->entropyHasher.state,
-                sizeof(entropyHasher)
-            );
+        memcpy(
+            &entropyHasher,
+            (void*)&WifiData->entropyHasher.state,
+            sizeof(entropyHasher)
+        );
 
 #ifdef ARM9
-            Spinlock_Release(WifiData->entropyHasher);
-#endif
-            leaveCriticalSection(oldIME);
-            // [ ] critical section   [ ] spinlock
-
-            Wifi_Rand_Update(&entropyHasher, &cpuDistinctValue, sizeof(cpuDistinctValue));
-            Wifi_Rand_Finish(&entropyHasher, &rngHasherTemp);
-
-            oldIME = enterCriticalSection();
-            asm volatile ("" : : : "memory");
-            // [x] critical section   [ ] spinlock
-
-            // If these don't match, we were interrupted, and rngHasher has
-            // already been updated with data at least as fresh as ours.
-            if(*finishedInputCounter == previousFinishedInputCounter)
-            {
-                memcpy(rngHasher, &rngHasherTemp, sizeof(rngHasherTemp));
-            }
-        }
-#ifdef ARM9
-        else
-        {
-            // [x] critical section   [x] spinlock
-            Spinlock_Release(WifiData->entropyHasher);
-            // [x] critical section   [ ] spinlock
-        }
+        Spinlock_Release(WifiData->entropyHasher);
 #endif
         // [x] critical section   [ ] spinlock
         leaveCriticalSection(oldIME);
         // [ ] critical section   [ ] spinlock
+
+        Wifi_Rand_Update(&entropyHasher, &cpuDistinctValue, sizeof(cpuDistinctValue));
+        Wifi_Rand_Finish(&entropyHasher, &rngHasherTemp);
+
+        oldIME = enterCriticalSection();
+        asm volatile ("" : : : "memory");
+        // [x] critical section   [ ] spinlock
+
+        // If these don't match, we were interrupted, and rngHasher has already
+        // been updated with data at least as fresh as ours.
+        //
+        // This assumption is sound because we have no preemptive multitasking;
+        // we won't be interrupted by a task that started earlier than we did
+        // and thus has less fresh data, only by an interrupt that might start
+        // and finish a brand new call to this function before returning to us.
+        if(*finishedInputCounter == previousFinishedInputCounter)
+        {
+            memcpy(rngHasher, &rngHasherTemp, sizeof(rngHasherTemp));
+        }
     }
 
+    // [x] critical section   [ ] spinlock
+
     uint32_t x;
-    Wifi_Rand_FinishedReadBytes(rngHasher, &x, sizeof(x));
+
+    if (Wifi_Rand_WillFinishedReadTriggerCompress(rngHasher, sizeof(x)))
+    {
+        Wifi_Rand_FinishedState reservation;
+        Wifi_Rand_FinishedReserveBytes(rngHasher, &reservation, sizeof(x));
+
+        leaveCriticalSection(oldIME);
+        // [ ] critical section   [ ] spinlock
+
+        Wifi_Rand_FinishedReadBytes(&reservation, &x, sizeof(x));
+
+        oldIME = enterCriticalSection();
+        // [x] critical section   [ ] spinlock
+
+        Wifi_Rand_FinishedEndReservation(rngHasher, &reservation);
+    } else {
+        Wifi_Rand_FinishedReadBytes(rngHasher, &x, sizeof(x));
+    }
+
+    leaveCriticalSection(oldIME);
+    // [ ] critical section   [ ] spinlock
 
     return x;
 }

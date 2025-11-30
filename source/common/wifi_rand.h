@@ -43,6 +43,11 @@ void Wifi_Rand_Init(Wifi_Rand_State *state);
 bool Wifi_Rand_WillUpdateTriggerCompress(Wifi_Rand_State *state, size_t inlen);
 void Wifi_Rand_Update(Wifi_Rand_State *state, const void *in, size_t inlen);
 void Wifi_Rand_Finish(Wifi_Rand_State *state, Wifi_Rand_FinishedState *finished);
+
+bool Wifi_Rand_WillFinishedReadTriggerCompress(Wifi_Rand_FinishedState *state, size_t outlen);
 void Wifi_Rand_FinishedReadBytes(Wifi_Rand_FinishedState *finished, void *out, size_t outlen);
+
+void Wifi_Rand_FinishedReserveBytes(Wifi_Rand_FinishedState *finished, Wifi_Rand_FinishedState *reservation, size_t outlen);
+void Wifi_Rand_FinishedEndReservation(Wifi_Rand_FinishedState *finished, Wifi_Rand_FinishedState *reservation);
 
 #endif

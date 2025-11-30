@@ -234,21 +234,31 @@ void Wifi_Rand_Finish(Wifi_Rand_State *state, Wifi_Rand_FinishedState *finished)
     memcpy(&rootHasher, state, sizeof(rootHasher));
     Wifi_Rand_InnerFinish(&rootHasher, finished->root, WIFI_RAND_OUTBYTES);
     finished->buflen = 0;
-    finished->counter = 0;
+    // DEVIATION FROM BLAKE2Xs: BLAKE2Xs starts the counter at 0;
+    // we start it at 1 because we use 0 pre-finalization.
+    finished->counter = 1;
     finished->inputCounter = state->inputCounter;
+}
+
+static void Wifi_Rand_FinishedPullBlockWithCounter(Wifi_Rand_FinishedState *finished, uint8_t out[WIFI_RAND_OUTBYTES], uint32_t counter)
+{
+    Wifi_Rand_State xofHasher;
+
+    Wifi_Rand_InitCounter(&xofHasher, counter);
+    Wifi_Rand_Update(&xofHasher, finished->root, WIFI_RAND_OUTBYTES);
+    Wifi_Rand_InnerFinish(&xofHasher, out, WIFI_RAND_OUTBYTES);
 }
 
 static void Wifi_Rand_FinishedReadBlock(Wifi_Rand_FinishedState *finished, uint8_t out[WIFI_RAND_OUTBYTES])
 {
-    Wifi_Rand_State xofHasher;
+    Wifi_Rand_FinishedPullBlockWithCounter(finished, out, finished->counter);
 
-    // Pre-increment so we never use 0, as that's the counter we
-    // use pre-finalization
-    // DEVIATION FROM BLAKE2Xs: BLAKE2Xs starts the counter at 0;
-    // we start it at 1.
-    Wifi_Rand_InitCounter(&xofHasher, ++finished->counter);
-    Wifi_Rand_Update(&xofHasher, finished->root, WIFI_RAND_OUTBYTES);
-    Wifi_Rand_InnerFinish(&xofHasher, out, WIFI_RAND_OUTBYTES);
+    finished->counter++;
+}
+
+bool Wifi_Rand_WillFinishedReadTriggerCompress(Wifi_Rand_FinishedState *finished, size_t outlen)
+{
+    return outlen > finished->buflen;
 }
 
 void Wifi_Rand_FinishedReadBytes(Wifi_Rand_FinishedState *finished, void *outv, size_t outlen)
@@ -256,6 +266,13 @@ void Wifi_Rand_FinishedReadBytes(Wifi_Rand_FinishedState *finished, void *outv, 
     uint8_t *out = outv;
 
     assert(out != NULL);
+
+    if (!Wifi_Rand_WillFinishedReadTriggerCompress(finished, outlen))
+    {
+        memcpy(out, &finished->buf[WIFI_RAND_OUTBYTES - finished->buflen], outlen);
+        finished->buflen -= outlen;
+        return;
+    }
 
     // If outlen is a multiple of the output block size (which is
     // likely if using 256-bit cryptography, since the output block
@@ -266,13 +283,6 @@ void Wifi_Rand_FinishedReadBytes(Wifi_Rand_FinishedState *finished, void *outv, 
     // matters is that they're never reused.
     if (outlen % WIFI_RAND_OUTBYTES > 0)
     {
-        if (outlen <= finished->buflen)
-        {
-            memcpy(out, &finished->buf[WIFI_RAND_OUTBYTES - finished->buflen], outlen);
-            finished->buflen -= outlen;
-            return;
-        }
-
         memcpy(out, &finished->buf[WIFI_RAND_OUTBYTES - finished->buflen], finished->buflen);
         out += finished->buflen;
         outlen -= finished->buflen;
@@ -292,4 +302,44 @@ void Wifi_Rand_FinishedReadBytes(Wifi_Rand_FinishedState *finished, void *outv, 
         memcpy(out, finished->buf, outlen);
         finished->buflen = WIFI_RAND_OUTBYTES - outlen;
     }
+}
+
+void Wifi_Rand_FinishedReserveBytes(Wifi_Rand_FinishedState *finished, Wifi_Rand_FinishedState *reservation, size_t outlen)
+{
+    assert(Wifi_Rand_WillFinishedReadTriggerCompress(finished, outlen));
+
+    memcpy(reservation, finished, sizeof(*reservation));
+
+    size_t unbufferedSize = outlen - finished->buflen;
+
+    finished->buflen = 0;
+    finished->counter += (unbufferedSize + WIFI_RAND_OUTBYTES - 1) / WIFI_RAND_OUTBYTES;
+}
+
+void Wifi_Rand_FinishedEndReservation(Wifi_Rand_FinishedState *finished, Wifi_Rand_FinishedState *reservation)
+{
+    size_t addedSize = WIFI_RAND_OUTBYTES - finished->buflen;
+    if (addedSize > reservation->buflen)
+    {
+        addedSize = reservation->buflen;
+    }
+
+    if (addedSize == 0)
+    {
+        return;
+    }
+
+    size_t combinedBuflen = finished->buflen + addedSize;
+
+    memmove(
+        &finished->buf[WIFI_RAND_OUTBYTES - combinedBuflen],
+        &finished->buf[WIFI_RAND_OUTBYTES - finished->buflen],
+        finished->buflen
+    );
+    memcpy(
+        &finished->buf[WIFI_RAND_OUTBYTES - addedSize],
+        &reservation->buf[WIFI_RAND_OUTBYTES - reservation->buflen],
+        addedSize
+    );
+    finished->buflen = combinedBuflen;
 }
