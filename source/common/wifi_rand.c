@@ -187,13 +187,18 @@ void Wifi_Rand_Init(Wifi_Rand_State *S)
     Wifi_Rand_InitCounter(S, 0);
 }
 
+bool Wifi_Rand_WillUpdateTriggerCompress(Wifi_Rand_State *S, size_t inlen) {
+    size_t fill = WIFI_RAND_BLOCKBYTES - S->buflen;
+    return inlen > fill;
+}
+
 void Wifi_Rand_Update(Wifi_Rand_State *S, const void *pin, size_t inlen)
 {
     const unsigned char * in = (const unsigned char *)pin;
 
     size_t left = S->buflen;
     size_t fill = WIFI_RAND_BLOCKBYTES - left;
-    if (inlen > fill)
+    if (Wifi_Rand_WillUpdateTriggerCompress(S, inlen))
     {
         S->buflen = 0;
         memcpy(S->buf + left, in, fill);

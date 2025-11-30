@@ -26,12 +26,35 @@ void Wifi_RandomAddEntropy(uint32_t value)
 
     asm volatile ("" : : : "memory");
 
-    Wifi_Rand_Update(
-        // It's okay to discard `volatile` with memory barriers in place.
-        (Wifi_Rand_State*)&WifiData->entropyHasher.state,
-        &value,
-        sizeof(value)
-    );
+    // It's okay to discard `volatile` with memory barriers in place.
+    Wifi_Rand_State *state = (Wifi_Rand_State*)&WifiData->entropyHasher.state;
+    bool compressTriggered = Wifi_Rand_WillUpdateTriggerCompress(state, sizeof(value));
+
+    Wifi_Rand_State tempState;
+    Wifi_Rand_State *workingState = state;
+
+    // There isn't much point in holding the lock while running the compression
+    // function. The ARM9 won't be able to make use of the entropy we've
+    // received while we're still working on mixing it in, but that's only
+    // natural. If we held the lock, the ARM9 could end up stuck in a critical
+    // section for just as long as the ARM7, potentially missing hblanks.
+    if (compressTriggered)
+    {
+        memcpy(&tempState, state, sizeof(tempState));
+        workingState = &tempState;
+
+        Spinlock_Release(WifiData->entropyHasher);
+    }
+
+    Wifi_Rand_Update(workingState, &value, sizeof(value));
+
+    if (compressTriggered)
+    {
+        while (Spinlock_Acquire(WifiData->entropyHasher) != SPINLOCK_OK);
+
+        memcpy(state, &tempState, sizeof(tempState));
+    }
+
     WifiData->entropyHasher.dirty7 = true;
     WifiData->entropyHasher.dirty9 = true;
 
