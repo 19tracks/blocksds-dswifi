@@ -24,7 +24,7 @@ typedef struct Wifi_Rand_State__
     uint8_t  buf[WIFI_RAND_BLOCKBYTES];
     size_t   buflen;
     uint8_t  lastNode;
-    // this counter starts at 1 so that it always compares greater than 0.
+    // This counter starts at 1 so that it always compares greater than 0.
     uint32_t inputCounter;
 } Wifi_Rand_State;
 
