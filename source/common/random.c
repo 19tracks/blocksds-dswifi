@@ -55,9 +55,6 @@ void Wifi_RandomAddEntropy(uint32_t value)
         memcpy(state, &tempState, sizeof(tempState));
     }
 
-    WifiData->entropyHasher.dirty7 = true;
-    WifiData->entropyHasher.dirty9 = true;
-
     asm volatile ("" : : : "memory");
 
     Spinlock_Release(WifiData->entropyHasher);
@@ -69,39 +66,55 @@ uint32_t Wifi_Random(void)
 {
 #ifdef ARM7
     char cpuDistinctValue = '7';
-    volatile bool *dirty = &WifiData->entropyHasher.dirty7;
     Wifi_Rand_FinishedState *rngHasher = (Wifi_Rand_FinishedState*)&WifiData->rngHasher7;
+    volatile uint32_t *finishedInputCounter = &WifiData->rngHasher7.input_counter;
 #else
     char cpuDistinctValue = '9';
-    volatile bool *dirty = &WifiData->entropyHasher.dirty9;
     Wifi_Rand_FinishedState *rngHasher = (Wifi_Rand_FinishedState*)&WifiData->rngHasher9;
+    volatile uint32_t *finishedInputCounter = &WifiData->rngHasher9.input_counter;
 #endif
 
-    if (*dirty)
+    volatile uint32_t *totalInputBytes = &WifiData->entropyHasher.state.input_counter;
+
+    if (*finishedInputCounter < *totalInputBytes)
     {
         Wifi_Rand_State entropyHasher;
+        Wifi_Rand_FinishedState rngHasherTemp;
 
-        // Since it can take almost 0.2 milliseconds for the ARM7 to release
-        // this lock, the ARM9 may also end up spending that long in this
-        // critical section waiting to acquire it.
         int oldIME = enterCriticalSection();
 #ifdef ARM9
         while (Spinlock_Acquire(WifiData->entropyHasher) != SPINLOCK_OK);
 #endif
         asm volatile ("" : : : "memory");
-        if (*dirty)
+
+        uint32_t previousFinishedInputCounter = *finishedInputCounter;
+
+        // This function might have been called again in an interrupt between
+        // the earlier check and here, so don't do unnecessary work in that case
+        if (*finishedInputCounter < *totalInputBytes)
         {
             memcpy(
                 &entropyHasher,
                 (void*)&WifiData->entropyHasher.state,
                 sizeof(entropyHasher)
             );
+
 #ifdef ARM9
             Spinlock_Release(WifiData->entropyHasher);
 #endif
+            leaveCriticalSection(oldIME);
+
             Wifi_Rand_Update(&entropyHasher, &cpuDistinctValue, sizeof(cpuDistinctValue));
-            Wifi_Rand_Finish(&entropyHasher, rngHasher);
-            *dirty = false;
+            Wifi_Rand_Finish(&entropyHasher, &rngHasherTemp);
+
+            oldIME = enterCriticalSection();
+            asm volatile ("" : : : "memory");
+            // If these don't match, we were interrupted, and rngHasher has
+            // already been updated with data at least as fresh as ours.
+            if(*finishedInputCounter == previousFinishedInputCounter)
+            {
+                memcpy(rngHasher, &rngHasherTemp, sizeof(rngHasherTemp));
+            }
         }
 #ifdef ARM9
         else

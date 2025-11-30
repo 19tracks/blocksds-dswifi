@@ -24,6 +24,8 @@ typedef struct Wifi_Rand_State__
     uint8_t  buf[WIFI_RAND_BLOCKBYTES];
     size_t   buflen;
     uint8_t  last_node;
+    // this counter starts at 1 so that it always compares greater than 0.
+    uint32_t input_counter;
 } Wifi_Rand_State;
 
 // buflen still stores the number of bytes in the buffer, but those bytes end
@@ -34,6 +36,7 @@ typedef struct Wifi_Rand_FinishedState__
     uint8_t  buf[WIFI_RAND_OUTBYTES];
     size_t   buflen;
     uint32_t counter;
+    uint32_t input_counter;
 } Wifi_Rand_FinishedState;
 
 void Wifi_Rand_Init(Wifi_Rand_State *S);

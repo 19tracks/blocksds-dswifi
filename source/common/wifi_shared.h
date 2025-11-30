@@ -164,12 +164,6 @@ typedef struct {
     // The state of the hasher itself
     Wifi_Rand_State state;
 
-    // The ARM7 and ARM9 have separate random number generators, which are
-    // seeded from the state we keep here. When bytes are fed into the state,
-    // we set both of these flags, and each CPU sees it, clears it, and reseeds
-    // its RNG the next time it tries to generate random numbers.
-    bool dirty7, dirty9;
-
     // As above, the ARM9 doesn't write to this, so the ARM7 is free to read
     // from it with no lock as long as interrupts are disabled.
     u32 spinlock;

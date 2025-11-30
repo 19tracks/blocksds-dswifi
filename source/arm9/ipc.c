@@ -91,9 +91,8 @@ static bool Wifi_InitIPC(unsigned int flags)
         WifiData->hostPlayerName[i] = PersonalData->name[i];
 
     Wifi_Rand_Init((void*)&WifiData->entropyHasher.state);
-    WifiData->entropyHasher.dirty7 = true;
-    WifiData->entropyHasher.dirty9 = true;
     // The spinlock was initialized to 0 with memset.
+    // So were the RNG hashers' total_input_bytes.
     // Now since we wrote to entropyHasher.state with its
     // `volatile` qualifier stripped:
     asm volatile ("" : : : "memory");

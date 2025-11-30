@@ -25,8 +25,8 @@ void Wifi_RandomAddEntropy(uint32_t value);
 // In practical terms, this number is exactly as unpredictable as the stream of
 // data that's been fed to Wifi_RandomAddEntropy up to this point.
 //
-// This can be a heavy operation and may block interrupts for too long to keep
-// up with hblanks.
+// This can be a heavy operation. Only call this function if you need
+// cryptographically secure random numbers.
 uint32_t Wifi_Random(void);
 
 #endif // DSWIFI_COMMON_RANDOM_H__

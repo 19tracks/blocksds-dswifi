@@ -64,6 +64,7 @@ static void Wifi_Rand_Init0(Wifi_Rand_State *S)
 {
     memset(S, 0, sizeof(Wifi_Rand_State));
     memcpy(S->h, Wifi_Rand_Iv, sizeof(Wifi_Rand_Iv));
+    S->input_counter = 1;
 }
 
 static void Wifi_Rand_InitCounter(Wifi_Rand_State *S, const uint32_t counter)
@@ -196,6 +197,8 @@ void Wifi_Rand_Update(Wifi_Rand_State *S, const void *pin, size_t inlen)
 {
     const unsigned char * in = (const unsigned char *)pin;
 
+    S->input_counter += inlen;
+
     size_t left = S->buflen;
     size_t fill = WIFI_RAND_BLOCKBYTES - left;
     if (Wifi_Rand_WillUpdateTriggerCompress(S, inlen))
@@ -232,6 +235,7 @@ void Wifi_Rand_Finish(Wifi_Rand_State *S, Wifi_Rand_FinishedState *F)
     Wifi_Rand_InnerFinish(C, F->root, WIFI_RAND_OUTBYTES);
     F->buflen = 0;
     F->counter = 0;
+    F->input_counter = S->input_counter;
 }
 
 static void Wifi_Rand_FinishedReadBlock(Wifi_Rand_FinishedState *F, uint8_t out[WIFI_RAND_OUTBYTES])
