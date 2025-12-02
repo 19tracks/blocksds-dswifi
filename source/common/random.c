@@ -40,11 +40,11 @@ void Wifi_RandomAddEntropyBytes(const void *in, size_t inlen)
     asm volatile ("" : : : "memory");
 
     // It's okay to discard `volatile` with memory barriers in place.
-    Wifi_Rand_Hasher *state = (Wifi_Rand_Hasher*)&WifiData->entropyHasher.state;
-    bool hashIsSlow = !Wifi_Rand_WillHashBeFast(state, inlen);
+    Wifi_Rand_Hasher *hasher = (Wifi_Rand_Hasher*)&WifiData->entropyHasher.hasher;
+    bool hashIsSlow = !Wifi_Rand_WillHashBeFast(hasher, inlen);
 
-    Wifi_Rand_Hasher tempState;
-    Wifi_Rand_Hasher *workingState = state;
+    Wifi_Rand_Hasher tempHasher;
+    Wifi_Rand_Hasher *workingHasher = hasher;
 
     // There isn't much point in holding the lock while running the compression
     // function. The ARM9 won't be able to make use of the entropy we've
@@ -53,21 +53,21 @@ void Wifi_RandomAddEntropyBytes(const void *in, size_t inlen)
     // section for just as long as the ARM7, potentially missing hblanks.
     if (hashIsSlow)
     {
-        memcpy(&tempState, state, sizeof(tempState));
-        workingState = &tempState;
+        memcpy(&tempHasher, hasher, sizeof(tempHasher));
+        workingHasher = &tempHasher;
     }
     else
     {
         while (Spinlock_Acquire(WifiData->entropyHasher) != SPINLOCK_OK);
     }
 
-    Wifi_Rand_Hash(workingState, in, inlen);
+    Wifi_Rand_Hash(workingHasher, in, inlen);
 
     if (hashIsSlow)
     {
         while (Spinlock_Acquire(WifiData->entropyHasher) != SPINLOCK_OK);
 
-        memcpy(state, &tempState, sizeof(tempState));
+        memcpy(hasher, &tempHasher, sizeof(tempHasher));
     }
 
     asm volatile ("" : : : "memory");
@@ -110,7 +110,7 @@ void Wifi_RandomBytes(void *out, size_t outlen)
     volatile uint32_t *generatorInputCounter = &WifiData->rngHasher9.inputCounter;
 #endif
 
-    volatile uint32_t *hasherInputCounter = &WifiData->entropyHasher.state.inputCounter;
+    volatile uint32_t *hasherInputCounter = &WifiData->entropyHasher.hasher.inputCounter;
 
     int oldIME = enterCriticalSection();
     // [x] critical section   [ ] spinlock
@@ -130,7 +130,7 @@ void Wifi_RandomBytes(void *out, size_t outlen)
 
         memcpy(
             &entropyHasher,
-            (void*)&WifiData->entropyHasher.state,
+            (void*)&WifiData->entropyHasher.hasher,
             sizeof(entropyHasher)
         );
 

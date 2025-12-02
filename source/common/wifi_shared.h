@@ -162,7 +162,7 @@ typedef struct {
 // of up to 128 bits, depending on how much high-quality entropy it's been fed
 typedef struct {
     // The state of the hasher itself
-    Wifi_Rand_Hasher state;
+    Wifi_Rand_Hasher hasher;
 
     // As above, the ARM9 doesn't write to this, so the ARM7 is free to read
     // from it with no lock as long as interrupts are disabled.
