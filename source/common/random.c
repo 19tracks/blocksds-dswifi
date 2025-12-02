@@ -19,10 +19,23 @@
 #ifdef ARM7
 void Wifi_RandomAddEntropyBytes(const void *in, size_t inlen)
 {
+    // We want to be:
+    // - IN a critical section: Between reading the old state of the hasher and
+    //   writing the new state, so that no bytes of entropy are lost. While
+    //   holding the spinlock, so that we don't deadlock.
+    // - NOT in a critical section: Probably while running the compression
+    //   function, but I haven't implemented this, as it makes things difficult,
+    //   and I want to check how important it is to respond promptly to
+    //   interrupts on the ARM7 first.
+    // - HOLDING the spinlock: While writing to WifiData->entropyHasher.state.
+    // - NOT holding the spinlock: While running the compression function, so
+    //   that the ARM9 doesn't spin for too long in a critical section while
+    //   waiting to acquire it. While not in a critical section, so that we
+    //   don't deadlock.
+
     // As mentioned in the comment in random.h, we occasionally stay in this
     // critical section for almost 0.2 milliseconds, which is unfortunate.
     int oldIME = enterCriticalSection();
-    while (Spinlock_Acquire(WifiData->entropyHasher) != SPINLOCK_OK);
 
     asm volatile ("" : : : "memory");
 
@@ -42,8 +55,10 @@ void Wifi_RandomAddEntropyBytes(const void *in, size_t inlen)
     {
         memcpy(&tempState, state, sizeof(tempState));
         workingState = &tempState;
-
-        Spinlock_Release(WifiData->entropyHasher);
+    }
+    else
+    {
+        while (Spinlock_Acquire(WifiData->entropyHasher) != SPINLOCK_OK);
     }
 
     Wifi_Rand_Hash(workingState, in, inlen);
@@ -58,6 +73,7 @@ void Wifi_RandomAddEntropyBytes(const void *in, size_t inlen)
     asm volatile ("" : : : "memory");
 
     Spinlock_Release(WifiData->entropyHasher);
+
     leaveCriticalSection(oldIME);
 }
 
@@ -69,24 +85,37 @@ void Wifi_RandomAddEntropy(uint32_t value)
 
 void Wifi_RandomBytes(void *out, size_t outlen)
 {
+    // We want to be:
+    // - IN a critical section:
+    //     - While reading and writing rngHasher.
+    //     - Between Wifi_Rand_WillGenerateBeFast and Wifi_Rand_Generate or
+    //       Wifi_Rand_Reserve.
+    //     - While holding the spinlock, so that we don't deadlock.
+    // - NOT in a critical section: While running the compression function, so
+    //   that we don't miss interrupts on the ARM9.
+    // - HOLDING the spinlock: While reading from WifiData->entropyHasher.state
+    //   on the ARM9.
+    // - NOT holding the spinlock: While not in a critical section, so that we
+    //   don't deadlock.
+
     // [ ] critical section   [ ] spinlock
 
 #ifdef ARM7
     char cpuDistinctValue = '7';
     Wifi_Rand_Generator *rngHasher = (Wifi_Rand_Generator*)&WifiData->rngHasher7;
-    volatile uint32_t *finishedInputCounter = &WifiData->rngHasher7.inputCounter;
+    volatile uint32_t *generatorInputCounter = &WifiData->rngHasher7.inputCounter;
 #else
     char cpuDistinctValue = '9';
     Wifi_Rand_Generator *rngHasher = (Wifi_Rand_Generator*)&WifiData->rngHasher9;
-    volatile uint32_t *finishedInputCounter = &WifiData->rngHasher9.inputCounter;
+    volatile uint32_t *generatorInputCounter = &WifiData->rngHasher9.inputCounter;
 #endif
 
-    volatile uint32_t *totalInputBytes = &WifiData->entropyHasher.state.inputCounter;
+    volatile uint32_t *hasherInputCounter = &WifiData->entropyHasher.state.inputCounter;
 
     int oldIME = enterCriticalSection();
     // [x] critical section   [ ] spinlock
 
-    if (*finishedInputCounter < *totalInputBytes)
+    if (*generatorInputCounter < *hasherInputCounter)
     {
         Wifi_Rand_Hasher entropyHasher;
         Wifi_Rand_Generator rngHasherTemp;
@@ -97,7 +126,7 @@ void Wifi_RandomBytes(void *out, size_t outlen)
         asm volatile ("" : : : "memory");
         // [x] critical section   [x] spinlock
 
-        uint32_t previousFinishedInputCounter = *finishedInputCounter;
+        uint32_t previousGeneratorInputCounter = *generatorInputCounter;
 
         memcpy(
             &entropyHasher,
@@ -126,7 +155,7 @@ void Wifi_RandomBytes(void *out, size_t outlen)
         // we won't be interrupted by a task that started earlier than we did
         // and thus has less fresh data, only by an interrupt that might start
         // and finish a brand new call to this function before returning to us.
-        if(*finishedInputCounter == previousFinishedInputCounter)
+        if(*generatorInputCounter == previousGeneratorInputCounter)
         {
             memcpy(rngHasher, &rngHasherTemp, sizeof(rngHasherTemp));
         }
