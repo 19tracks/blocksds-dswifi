@@ -282,8 +282,8 @@ typedef struct WIFI_MAINSTRUCT
     // purposes
     Wifi_EntropyHasher entropyHasher;
 
-    // Separate random number generators for the ARM7 and ARM9, continuously
-    // seeded from entropyHasher
+    // Separate random number generators for the ARM7 and ARM9, seeded from
+    // entropyHasher when necessary
     Wifi_Rand_Generator rngHasher7, rngHasher9;
 
     // End
