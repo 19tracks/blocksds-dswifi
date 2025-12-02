@@ -108,9 +108,10 @@ static inline uint32_t rotr32(const uint32_t w, const unsigned c)
 static void Wifi_Rand_Compress(Wifi_Rand_Hasher *hasher, const uint8_t in[WIFI_RAND_BLOCKBYTES])
 {
     uint32_t m_1[16], m_2[16];
+    uint32_t *m_on = m_1, *m_off = m_2;
     uint32_t v[16];
 
-    memcpy(m_1, in, sizeof(m_1));
+    memcpy(m_on, in, sizeof(m_1));
 
     memcpy(v, hasher->h, sizeof(hasher->h));
     memcpy(&v[8], Wifi_Rand_Iv, sizeof(v[8]) * 4);
@@ -126,25 +127,22 @@ static void Wifi_Rand_Compress(Wifi_Rand_Hasher *hasher, const uint8_t in[WIFI_R
     // power.
     for (size_t i = 0; ;)
     {
-        ROUND(m_1);
+        ROUND(m_on);
 
-        // We check here instead of at the end of the loop because each loop
-        // performs two rounds and our number of rounds is odd.
-        if (i + 1 >= 7) break;
+        i++;
+        if (i >= 7)
+        {
+            break;
+        }
+
+        uint32_t *m_temp = m_on;
+        m_on = m_off;
+        m_off = m_temp;
 
         for (size_t j = 0; j < 16; ++j)
         {
-            m_2[j] = m_1[Wifi_Rand_Sigma[j]];
+            m_on[j] = m_off[Wifi_Rand_Sigma[j]];
         }
-
-        ROUND(m_2);
-
-        for (size_t j = 0; j < 16; ++j)
-        {
-            m_1[j] = m_2[Wifi_Rand_Sigma[j]];
-        }
-
-        i += 2;
     }
 
     for (size_t i = 0; i < 8; ++i)
