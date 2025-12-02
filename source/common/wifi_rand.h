@@ -16,11 +16,16 @@
 #define WIFI_RAND_BLOCKBYTES 64
 #define WIFI_RAND_OUTBYTES   32
 
+// This is mostly the same as blake2s_state from the BLAKE2 reference
+// implementation. outlen has been removed, last_node has been renamed to
+// lastNode, and inputCounter has been added so that we can keep track of how
+// fresh hashers and generators are relative to each other.
 typedef struct Wifi_Rand_Hasher__
 {
     uint32_t h[8];
     uint32_t t[2];
     uint32_t f[2];
+    // Indices [0,buflen) of buf contain buffered bytes.
     uint8_t  buf[WIFI_RAND_BLOCKBYTES];
     size_t   buflen;
     uint8_t  lastNode;
@@ -28,23 +33,30 @@ typedef struct Wifi_Rand_Hasher__
     uint32_t inputCounter;
 } Wifi_Rand_Hasher;
 
-// buflen still stores the number of bytes in the buffer, but those bytes end
-// at buf[WIFI_RAND_OUTBYTES] instead of starting at buf[0].
 typedef struct Wifi_Rand_Generator__
 {
     uint8_t  root[WIFI_RAND_OUTBYTES];
+    // Indices [WIFI_RAND_OUTBYTES-buflen,WIFI_RAND_OUTBYTES) of buf contain
+    // buffered bytes.
     uint8_t  buf[WIFI_RAND_OUTBYTES];
     size_t   buflen;
+    // This counter is used to seek through the stream of random bytes. If it
+    // ever repeats (which it will after reading 2^32 * 32 bytes, i.e. 128 GiB,
+    // due to overflow), the stream will repeat itself!
     uint32_t counter;
+    // This is set to hasher->inputCounter in Wifi_Rand_SpawnGenerator and left
+    // with that same value permanently.
     uint32_t inputCounter;
 } Wifi_Rand_Generator;
 
 // Initialize a hasher. No entropy is sampled; the state the hasher is left in
 // after this function is called is always the same.
 void Wifi_Rand_InitHasher(Wifi_Rand_Hasher *hasher);
-// If this returns true, a call to Wifi_Rand_Hash with the given inlen will only
-// copy inlen bytes into its internal buffer and update bookkeeping; no
-// expensive compression steps will be run.
+// If this returns true, a call to Wifi_Rand_Hash with the given hasher and
+// inlen will only copy inlen bytes into the hasher's internal buffer and update
+// bookkeeping; no expensive compression steps will be run. This is only
+// necessarily true if no other calls to Wifi_Rand_Hash with the given hasher
+// occur first.
 bool Wifi_Rand_WillHashBeFast(Wifi_Rand_Hasher *hasher, size_t inlen);
 // Add the given bytes to the hasher. If the internal buffer would overflow, the
 // compression function is called as many times as necessary to absorb the
@@ -55,10 +67,12 @@ void Wifi_Rand_Hash(Wifi_Rand_Hasher *hasher, const void *in, size_t inlen);
 // compression function.
 void Wifi_Rand_SpawnGenerator(Wifi_Rand_Hasher *hasher, Wifi_Rand_Generator *generator);
 
-// If this returns true, a call to Wifi_Rand_Generate with the given outlen will
-// only copy outlen bytes from its internal buffer and update bookkeeping; no
-// expensive compression steps will be run.
-bool Wifi_Rand_WillGenerateBeFast(Wifi_Rand_Generator *hasher, size_t outlen);
+// If this returns true, a call to Wifi_Rand_Generate with the given generator
+// and outlen will only copy outlen bytes from the generator's internal buffer
+// and update bookkeeping; no expensive compression steps will be run. This is
+// only necessarily true if no other calls to Wifi_Rand_Generate with the given
+// generator occur first.
+bool Wifi_Rand_WillGenerateBeFast(Wifi_Rand_Generator *generator, size_t outlen);
 // Produce outlen pseudorandom bytes. The stream of bytes given as output across
 // all invocations of this function on a given generator should be practically
 // unique to the stream of bytes that were given as input to the hasher that was
