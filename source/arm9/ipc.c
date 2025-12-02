@@ -90,7 +90,7 @@ static bool Wifi_InitIPC(unsigned int flags)
     for (u8 i = 0; i < PersonalData->nameLen; i++)
         WifiData->hostPlayerName[i] = PersonalData->name[i];
 
-    Wifi_Rand_Init((void*)&WifiData->entropyHasher.state);
+    Wifi_Rand_InitHasher((void*)&WifiData->entropyHasher.state);
     // The spinlock was initialized to 0 with memset.
     // So were the RNG hashers' total_input_bytes.
     // Now since we wrote to entropyHasher.state with its

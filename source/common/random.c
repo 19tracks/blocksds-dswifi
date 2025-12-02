@@ -27,18 +27,18 @@ void Wifi_RandomAddEntropyBytes(const void *in, size_t inlen)
     asm volatile ("" : : : "memory");
 
     // It's okay to discard `volatile` with memory barriers in place.
-    Wifi_Rand_State *state = (Wifi_Rand_State*)&WifiData->entropyHasher.state;
-    bool compressTriggered = Wifi_Rand_WillUpdateTriggerCompress(state, inlen);
+    Wifi_Rand_Hasher *state = (Wifi_Rand_Hasher*)&WifiData->entropyHasher.state;
+    bool hashIsSlow = !Wifi_Rand_WillHashBeFast(state, inlen);
 
-    Wifi_Rand_State tempState;
-    Wifi_Rand_State *workingState = state;
+    Wifi_Rand_Hasher tempState;
+    Wifi_Rand_Hasher *workingState = state;
 
     // There isn't much point in holding the lock while running the compression
     // function. The ARM9 won't be able to make use of the entropy we've
     // received while we're still working on mixing it in, but that's only
     // natural. If we held the lock, the ARM9 could end up stuck in a critical
     // section for just as long as the ARM7, potentially missing hblanks.
-    if (compressTriggered)
+    if (hashIsSlow)
     {
         memcpy(&tempState, state, sizeof(tempState));
         workingState = &tempState;
@@ -46,9 +46,9 @@ void Wifi_RandomAddEntropyBytes(const void *in, size_t inlen)
         Spinlock_Release(WifiData->entropyHasher);
     }
 
-    Wifi_Rand_Update(workingState, in, inlen);
+    Wifi_Rand_Hash(workingState, in, inlen);
 
-    if (compressTriggered)
+    if (hashIsSlow)
     {
         while (Spinlock_Acquire(WifiData->entropyHasher) != SPINLOCK_OK);
 
@@ -73,11 +73,11 @@ void Wifi_RandomBytes(void *out, size_t outlen)
 
 #ifdef ARM7
     char cpuDistinctValue = '7';
-    Wifi_Rand_FinishedState *rngHasher = (Wifi_Rand_FinishedState*)&WifiData->rngHasher7;
+    Wifi_Rand_Generator *rngHasher = (Wifi_Rand_Generator*)&WifiData->rngHasher7;
     volatile uint32_t *finishedInputCounter = &WifiData->rngHasher7.inputCounter;
 #else
     char cpuDistinctValue = '9';
-    Wifi_Rand_FinishedState *rngHasher = (Wifi_Rand_FinishedState*)&WifiData->rngHasher9;
+    Wifi_Rand_Generator *rngHasher = (Wifi_Rand_Generator*)&WifiData->rngHasher9;
     volatile uint32_t *finishedInputCounter = &WifiData->rngHasher9.inputCounter;
 #endif
 
@@ -88,8 +88,8 @@ void Wifi_RandomBytes(void *out, size_t outlen)
 
     if (*finishedInputCounter < *totalInputBytes)
     {
-        Wifi_Rand_State entropyHasher;
-        Wifi_Rand_FinishedState rngHasherTemp;
+        Wifi_Rand_Hasher entropyHasher;
+        Wifi_Rand_Generator rngHasherTemp;
 
 #ifdef ARM9
         while (Spinlock_Acquire(WifiData->entropyHasher) != SPINLOCK_OK);
@@ -112,8 +112,8 @@ void Wifi_RandomBytes(void *out, size_t outlen)
         leaveCriticalSection(oldIME);
         // [ ] critical section   [ ] spinlock
 
-        Wifi_Rand_Update(&entropyHasher, &cpuDistinctValue, sizeof(cpuDistinctValue));
-        Wifi_Rand_Finish(&entropyHasher, &rngHasherTemp);
+        Wifi_Rand_Hash(&entropyHasher, &cpuDistinctValue, sizeof(cpuDistinctValue));
+        Wifi_Rand_SpawnGenerator(&entropyHasher, &rngHasherTemp);
 
         oldIME = enterCriticalSection();
         asm volatile ("" : : : "memory");
@@ -134,22 +134,24 @@ void Wifi_RandomBytes(void *out, size_t outlen)
 
     // [x] critical section   [ ] spinlock
 
-    if (Wifi_Rand_WillFinishedReadTriggerCompress(rngHasher, outlen))
+    if (Wifi_Rand_WillGenerateBeFast(rngHasher, outlen))
     {
-        Wifi_Rand_FinishedState reservation;
-        Wifi_Rand_FinishedReserveBytes(rngHasher, &reservation, outlen);
+        Wifi_Rand_Generate(rngHasher, out, outlen);
+    }
+    else
+    {
+        Wifi_Rand_Generator reservation;
+        Wifi_Rand_Reserve(rngHasher, &reservation, outlen);
 
         leaveCriticalSection(oldIME);
         // [ ] critical section   [ ] spinlock
 
-        Wifi_Rand_FinishedReadBytes(&reservation, out, outlen);
+        Wifi_Rand_Generate(&reservation, out, outlen);
 
         oldIME = enterCriticalSection();
         // [x] critical section   [ ] spinlock
 
-        Wifi_Rand_FinishedEndReservation(rngHasher, &reservation);
-    } else {
-        Wifi_Rand_FinishedReadBytes(rngHasher, out, outlen);
+        Wifi_Rand_ReabsorbReservation(rngHasher, &reservation);
     }
 
     leaveCriticalSection(oldIME);

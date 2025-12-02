@@ -162,7 +162,7 @@ typedef struct {
 // of up to 128 bits, depending on how much high-quality entropy it's been fed
 typedef struct {
     // The state of the hasher itself
-    Wifi_Rand_State state;
+    Wifi_Rand_Hasher state;
 
     // As above, the ARM9 doesn't write to this, so the ARM7 is free to read
     // from it with no lock as long as interrupts are disabled.
@@ -284,7 +284,7 @@ typedef struct WIFI_MAINSTRUCT
 
     // Separate random number generators for the ARM7 and ARM9, continuously
     // seeded from entropyHasher
-    Wifi_Rand_FinishedState rngHasher7, rngHasher9;
+    Wifi_Rand_Generator rngHasher7, rngHasher9;
 
     // End
     // ---

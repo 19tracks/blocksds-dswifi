@@ -37,43 +37,43 @@ static const uint8_t Wifi_Rand_Sigma[16] CACHE_ALIGNED =
     2, 6, 3, 10, 7, 0, 4, 13, 1, 11, 12, 5, 9, 14, 15, 8
 };
 
-static void Wifi_Rand_SetLastnode(Wifi_Rand_State *state)
+static void Wifi_Rand_SetLastnode(Wifi_Rand_Hasher *hasher)
 {
-    state->f[1] = (uint32_t)-1;
+    hasher->f[1] = (uint32_t)-1;
 }
 
-static int Wifi_Rand_IsLastblock(const Wifi_Rand_State *state)
+static int Wifi_Rand_IsLastblock(const Wifi_Rand_Hasher *hasher)
 {
-    return state->f[0] != 0;
+    return hasher->f[0] != 0;
 }
 
-static void Wifi_Rand_SetLastblock(Wifi_Rand_State *state)
+static void Wifi_Rand_SetLastblock(Wifi_Rand_Hasher *hasher)
 {
-    if (state->lastNode) Wifi_Rand_SetLastnode(state);
+    if (hasher->lastNode) Wifi_Rand_SetLastnode(hasher);
 
-    state->f[0] = (uint32_t)-1;
+    hasher->f[0] = (uint32_t)-1;
 }
 
-static void Wifi_Rand_IncrementCounter(Wifi_Rand_State *state, const uint32_t inc)
+static void Wifi_Rand_IncrementCounter(Wifi_Rand_Hasher *hasher, const uint32_t inc)
 {
-    state->t[0] += inc;
-    state->t[1] += (state->t[0] < inc);
+    hasher->t[0] += inc;
+    hasher->t[1] += (hasher->t[0] < inc);
 }
 
-static void Wifi_Rand_Init0(Wifi_Rand_State *state)
+static void Wifi_Rand_InitHasher0(Wifi_Rand_Hasher *hasher)
 {
-    memset(state, 0, sizeof(Wifi_Rand_State));
-    memcpy(state->h, Wifi_Rand_Iv, sizeof(Wifi_Rand_Iv));
-    state->inputCounter = 1;
+    memset(hasher, 0, sizeof(Wifi_Rand_Hasher));
+    memcpy(hasher->h, Wifi_Rand_Iv, sizeof(Wifi_Rand_Iv));
+    hasher->inputCounter = 1;
 }
 
-static void Wifi_Rand_InitCounter(Wifi_Rand_State *state, const uint32_t counter)
+static void Wifi_Rand_InitHasherCounter(Wifi_Rand_Hasher *hasher, const uint32_t counter)
 {
-    Wifi_Rand_Init0(state);
+    Wifi_Rand_InitHasher0(hasher);
     // DEVIATION FROM BLAKE2Xs: We use a 32-bit counter in place of a 256-bit
     // parameter block. The other parameters in BLAKE2s's parameter block are
     // important for a hash function but irrelevant for an RNG.
-    state->h[0] ^= counter;
+    hasher->h[0] ^= counter;
 }
 
 static inline uint32_t rotr32(const uint32_t w, const unsigned c)
@@ -105,19 +105,19 @@ static inline uint32_t rotr32(const uint32_t w, const unsigned c)
         G(m, 7, v[ 3], v[ 4], v[ 9], v[14]); \
     } while (0)
 
-static void Wifi_Rand_Compress(Wifi_Rand_State *state, const uint8_t in[WIFI_RAND_BLOCKBYTES])
+static void Wifi_Rand_Compress(Wifi_Rand_Hasher *hasher, const uint8_t in[WIFI_RAND_BLOCKBYTES])
 {
     uint32_t m_1[16], m_2[16];
     uint32_t v[16];
 
     memcpy(m_1, in, sizeof(m_1));
 
-    memcpy(v, state->h, sizeof(state->h));
+    memcpy(v, hasher->h, sizeof(hasher->h));
     memcpy(&v[8], Wifi_Rand_Iv, sizeof(v[8]) * 4);
-    v[12] = state->t[0] ^ Wifi_Rand_Iv[4];
-    v[13] = state->t[1] ^ Wifi_Rand_Iv[5];
-    v[14] = state->f[0] ^ Wifi_Rand_Iv[6];
-    v[15] = state->f[1] ^ Wifi_Rand_Iv[7];
+    v[12] = hasher->t[0] ^ Wifi_Rand_Iv[4];
+    v[13] = hasher->t[1] ^ Wifi_Rand_Iv[5];
+    v[14] = hasher->f[0] ^ Wifi_Rand_Iv[6];
+    v[15] = hasher->f[1] ^ Wifi_Rand_Iv[7];
 
     // DEVIATION FROM BLAKE2Xs: We use 7 rounds instead of 10. This number
     // was chosen for BLAKE3 based on years of cryptanalysis suggesting that 7
@@ -149,7 +149,7 @@ static void Wifi_Rand_Compress(Wifi_Rand_State *state, const uint8_t in[WIFI_RAN
 
     for (size_t i = 0; i < 8; ++i)
     {
-        state->h[i] = state->h[i] ^ v[i] ^ v[i + 8];
+        hasher->h[i] = hasher->h[i] ^ v[i] ^ v[i + 8];
     }
 }
 
@@ -168,109 +168,109 @@ static void Wifi_Rand_Compress(Wifi_Rand_State *state, const uint8_t in[WIFI_RAN
 // adds subtle complications to the security properies of the compression
 // function, which we can sidestep having to confidently reason about by not
 // implementing it.
-static void Wifi_Rand_InnerFinish(Wifi_Rand_State *state, void *out, size_t outlen)
+static void Wifi_Rand_InnerFinish(Wifi_Rand_Hasher *hasher, void *out, size_t outlen)
 {
     assert(out != NULL);
-    assert(!Wifi_Rand_IsLastblock(state));
+    assert(!Wifi_Rand_IsLastblock(hasher));
 
-    Wifi_Rand_IncrementCounter(state, (uint32_t)state->buflen);
-    Wifi_Rand_SetLastblock(state);
-    memset(state->buf + state->buflen, 0, WIFI_RAND_BLOCKBYTES - state->buflen); // Padding
-    Wifi_Rand_Compress(state, state->buf);
+    Wifi_Rand_IncrementCounter(hasher, (uint32_t)hasher->buflen);
+    Wifi_Rand_SetLastblock(hasher);
+    memset(hasher->buf + hasher->buflen, 0, WIFI_RAND_BLOCKBYTES - hasher->buflen); // Padding
+    Wifi_Rand_Compress(hasher, hasher->buf);
 
-    memcpy(out, state->h, outlen);
+    memcpy(out, hasher->h, outlen);
 }
 
 // External API:
 
-void Wifi_Rand_Init(Wifi_Rand_State *state)
+void Wifi_Rand_InitHasher(Wifi_Rand_Hasher *hasher)
 {
-    Wifi_Rand_InitCounter(state, 0);
+    Wifi_Rand_InitHasherCounter(hasher, 0);
 }
 
-bool Wifi_Rand_WillUpdateTriggerCompress(Wifi_Rand_State *state, size_t inlen) {
-    size_t fill = WIFI_RAND_BLOCKBYTES - state->buflen;
-    return inlen > fill;
+bool Wifi_Rand_WillHashBeFast(Wifi_Rand_Hasher *hasher, size_t inlen) {
+    size_t fill = WIFI_RAND_BLOCKBYTES - hasher->buflen;
+    return inlen <= fill;
 }
 
-void Wifi_Rand_Update(Wifi_Rand_State *state, const void *pin, size_t inlen)
+void Wifi_Rand_Hash(Wifi_Rand_Hasher *hasher, const void *pin, size_t inlen)
 {
     const unsigned char *in = (const unsigned char *)pin;
 
-    state->inputCounter += inlen;
+    hasher->inputCounter += inlen;
 
-    size_t left = state->buflen;
+    size_t left = hasher->buflen;
     size_t fill = WIFI_RAND_BLOCKBYTES - left;
-    if (Wifi_Rand_WillUpdateTriggerCompress(state, inlen))
+    if (!Wifi_Rand_WillHashBeFast(hasher, inlen))
     {
-        state->buflen = 0;
-        memcpy(state->buf + left, in, fill);
-        Wifi_Rand_IncrementCounter(state, WIFI_RAND_BLOCKBYTES);
-        Wifi_Rand_Compress(state, state->buf);
+        hasher->buflen = 0;
+        memcpy(hasher->buf + left, in, fill);
+        Wifi_Rand_IncrementCounter(hasher, WIFI_RAND_BLOCKBYTES);
+        Wifi_Rand_Compress(hasher, hasher->buf);
         in += fill; inlen -= fill;
         while (inlen > WIFI_RAND_BLOCKBYTES)
         {
-            Wifi_Rand_IncrementCounter(state, WIFI_RAND_BLOCKBYTES);
-            Wifi_Rand_Compress(state, in);
+            Wifi_Rand_IncrementCounter(hasher, WIFI_RAND_BLOCKBYTES);
+            Wifi_Rand_Compress(hasher, in);
             in += WIFI_RAND_BLOCKBYTES;
             inlen -= WIFI_RAND_BLOCKBYTES;
         }
     }
-    memcpy(state->buf + state->buflen, in, inlen);
-    state->buflen += inlen;
+    memcpy(hasher->buf + hasher->buflen, in, inlen);
+    hasher->buflen += inlen;
 }
 
 // This isn't really a deviation, but it is worth pointing out. When we finish
-// a hasher, we leave it unchanged and write the finished state into a separate
+// a hasher, we leave it unchanged and write the generator hasher into a separate
 // struct. This allows us to go back, add more bytes, and finish it again. Since
 // the hasher is deterministic, this is equivalent to keeping track of
 // everything that's been fed to the hasher, going back, and feeding it in again
 // plus some new bytes into a new hasher; it's just faster and takes less
 // memory.
-void Wifi_Rand_Finish(Wifi_Rand_State *state, Wifi_Rand_FinishedState *finished)
+void Wifi_Rand_SpawnGenerator(Wifi_Rand_Hasher *hasher, Wifi_Rand_Generator *generator)
 {
     // Finalize the root hash
-    Wifi_Rand_State rootHasher;
-    memcpy(&rootHasher, state, sizeof(rootHasher));
-    Wifi_Rand_InnerFinish(&rootHasher, finished->root, WIFI_RAND_OUTBYTES);
-    finished->buflen = 0;
+    Wifi_Rand_Hasher rootHasher;
+    memcpy(&rootHasher, hasher, sizeof(rootHasher));
+    Wifi_Rand_InnerFinish(&rootHasher, generator->root, WIFI_RAND_OUTBYTES);
+    generator->buflen = 0;
     // DEVIATION FROM BLAKE2Xs: BLAKE2Xs starts the counter at 0;
     // we start it at 1 because we use 0 pre-finalization.
-    finished->counter = 1;
-    finished->inputCounter = state->inputCounter;
+    generator->counter = 1;
+    generator->inputCounter = hasher->inputCounter;
 }
 
-static void Wifi_Rand_FinishedPullBlockWithCounter(Wifi_Rand_FinishedState *finished, uint8_t out[WIFI_RAND_OUTBYTES], uint32_t counter)
+static void Wifi_Rand_SpawnGeneratoredPullBlockWithCounter(Wifi_Rand_Generator *generator, uint8_t out[WIFI_RAND_OUTBYTES], uint32_t counter)
 {
-    Wifi_Rand_State xofHasher;
+    Wifi_Rand_Hasher xofHasher;
 
-    Wifi_Rand_InitCounter(&xofHasher, counter);
-    Wifi_Rand_Update(&xofHasher, finished->root, WIFI_RAND_OUTBYTES);
+    Wifi_Rand_InitHasherCounter(&xofHasher, counter);
+    Wifi_Rand_Hash(&xofHasher, generator->root, WIFI_RAND_OUTBYTES);
     Wifi_Rand_InnerFinish(&xofHasher, out, WIFI_RAND_OUTBYTES);
 }
 
-static void Wifi_Rand_FinishedReadBlock(Wifi_Rand_FinishedState *finished, uint8_t out[WIFI_RAND_OUTBYTES])
+static void Wifi_Rand_SpawnGeneratoredReadBlock(Wifi_Rand_Generator *generator, uint8_t out[WIFI_RAND_OUTBYTES])
 {
-    Wifi_Rand_FinishedPullBlockWithCounter(finished, out, finished->counter);
+    Wifi_Rand_SpawnGeneratoredPullBlockWithCounter(generator, out, generator->counter);
 
-    finished->counter++;
+    generator->counter++;
 }
 
-bool Wifi_Rand_WillFinishedReadTriggerCompress(Wifi_Rand_FinishedState *finished, size_t outlen)
+bool Wifi_Rand_WillGenerateBeFast(Wifi_Rand_Generator *generator, size_t outlen)
 {
-    return outlen > finished->buflen;
+    return outlen <= generator->buflen;
 }
 
-void Wifi_Rand_FinishedReadBytes(Wifi_Rand_FinishedState *finished, void *outv, size_t outlen)
+void Wifi_Rand_Generate(Wifi_Rand_Generator *generator, void *outv, size_t outlen)
 {
     uint8_t *out = outv;
 
     assert(out != NULL);
 
-    if (!Wifi_Rand_WillFinishedReadTriggerCompress(finished, outlen))
+    if (Wifi_Rand_WillGenerateBeFast(generator, outlen))
     {
-        memcpy(out, &finished->buf[WIFI_RAND_OUTBYTES - finished->buflen], outlen);
-        finished->buflen -= outlen;
+        memcpy(out, &generator->buf[WIFI_RAND_OUTBYTES - generator->buflen], outlen);
+        generator->buflen -= outlen;
         return;
     }
 
@@ -283,42 +283,42 @@ void Wifi_Rand_FinishedReadBytes(Wifi_Rand_FinishedState *finished, void *outv, 
     // matters is that they're never reused.
     if (outlen % WIFI_RAND_OUTBYTES > 0)
     {
-        memcpy(out, &finished->buf[WIFI_RAND_OUTBYTES - finished->buflen], finished->buflen);
-        out += finished->buflen;
-        outlen -= finished->buflen;
-        finished->buflen = 0;
+        memcpy(out, &generator->buf[WIFI_RAND_OUTBYTES - generator->buflen], generator->buflen);
+        out += generator->buflen;
+        outlen -= generator->buflen;
+        generator->buflen = 0;
     }
 
     while (outlen >= WIFI_RAND_OUTBYTES)
     {
-        Wifi_Rand_FinishedReadBlock(finished, out);
+        Wifi_Rand_SpawnGeneratoredReadBlock(generator, out);
         out += WIFI_RAND_OUTBYTES;
         outlen -= WIFI_RAND_OUTBYTES;
     }
 
     if (outlen > 0)
     {
-        Wifi_Rand_FinishedReadBlock(finished, finished->buf);
-        memcpy(out, finished->buf, outlen);
-        finished->buflen = WIFI_RAND_OUTBYTES - outlen;
+        Wifi_Rand_SpawnGeneratoredReadBlock(generator, generator->buf);
+        memcpy(out, generator->buf, outlen);
+        generator->buflen = WIFI_RAND_OUTBYTES - outlen;
     }
 }
 
-void Wifi_Rand_FinishedReserveBytes(Wifi_Rand_FinishedState *finished, Wifi_Rand_FinishedState *reservation, size_t outlen)
+void Wifi_Rand_Reserve(Wifi_Rand_Generator *generator, Wifi_Rand_Generator *reservation, size_t outlen)
 {
-    assert(Wifi_Rand_WillFinishedReadTriggerCompress(finished, outlen));
+    assert(!Wifi_Rand_WillGenerateBeFast(generator, outlen));
 
-    memcpy(reservation, finished, sizeof(*reservation));
+    memcpy(reservation, generator, sizeof(*reservation));
 
-    size_t unbufferedSize = outlen - finished->buflen;
+    size_t unbufferedSize = outlen - generator->buflen;
 
-    finished->buflen = 0;
-    finished->counter += (unbufferedSize + WIFI_RAND_OUTBYTES - 1) / WIFI_RAND_OUTBYTES;
+    generator->buflen = 0;
+    generator->counter += (unbufferedSize + WIFI_RAND_OUTBYTES - 1) / WIFI_RAND_OUTBYTES;
 }
 
-void Wifi_Rand_FinishedEndReservation(Wifi_Rand_FinishedState *finished, Wifi_Rand_FinishedState *reservation)
+void Wifi_Rand_ReabsorbReservation(Wifi_Rand_Generator *generator, Wifi_Rand_Generator *reservation)
 {
-    size_t addedSize = WIFI_RAND_OUTBYTES - finished->buflen;
+    size_t addedSize = WIFI_RAND_OUTBYTES - generator->buflen;
     if (addedSize > reservation->buflen)
     {
         addedSize = reservation->buflen;
@@ -329,12 +329,12 @@ void Wifi_Rand_FinishedEndReservation(Wifi_Rand_FinishedState *finished, Wifi_Ra
         return;
     }
 
-    size_t combinedBuflen = finished->buflen + addedSize;
+    size_t combinedBuflen = generator->buflen + addedSize;
 
     memcpy(
-        &finished->buf[WIFI_RAND_OUTBYTES - combinedBuflen],
+        &generator->buf[WIFI_RAND_OUTBYTES - combinedBuflen],
         &reservation->buf[WIFI_RAND_OUTBYTES - addedSize],
         addedSize
     );
-    finished->buflen = combinedBuflen;
+    generator->buflen = combinedBuflen;
 }
